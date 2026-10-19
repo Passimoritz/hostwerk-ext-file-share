@@ -1,0 +1,86 @@
+{
+  "Cancel": "Abbrechen",
+  "Save": "Speichern",
+  "New": "Neu",
+  "Read only (download, no upload or delete)": "Nur lesen (herunterladen, kein Hochladen oder Löschen)",
+  "File share": "Dateifreigabe",
+  "Share a folder over SFTP – e.g. so friends can upload worlds, mods or photos. Every user has their own password and folder.": "Einen Ordner per SFTP freigeben – z. B. damit Freunde Welten, Mods oder Fotos hochladen. Jeder Zugang hat ein eigenes Passwort und einen eigenen Ordner.",
+  "Settings": "Einstellungen",
+  "Stop": "Stoppen",
+  "Start": "Starten",
+  "Address for the SFTP program (WinSCP, FileZilla, Cyberduck):": "Adresse für das SFTP-Programm (WinSCP, FileZilla, Cyberduck):",
+  "Server fingerprint:": "Fingerabdruck des Servers:",
+  "On the first connection the SFTP program shows this fingerprint. If it is the same, the connection really goes to this PC.": "Beim ersten Verbinden zeigt das SFTP-Programm diesen Fingerabdruck. Stimmt er überein, geht die Verbindung wirklich zu diesem PC.",
+  "Users": "Zugänge",
+  "New user": "Neuer Zugang",
+  "read only": "nur lesen",
+  "read and write": "lesen und schreiben",
+  "folder missing": "Ordner fehlt",
+  "Edit": "Bearbeiten",
+  "Activity": "Aktivität",
+  "Sign-ins, uploads and wrong passwords appear here.": "Anmeldungen, Uploads und falsche Passwörter erscheinen hier.",
+  "User name": "Benutzername",
+  "e.g. lena": "z. B. lena",
+  "At least 10 characters. Hostwerk only keeps a hash – it cannot show the password again.": "Mindestens 10 Zeichen. Hostwerk speichert nur einen Hash – es kann das Passwort später nicht mehr zeigen.",
+  "Copy": "Kopieren",
+  "Folder this user sees": "Ordner, den dieser Zugang sieht",
+  "The user cannot go above it.": "Darüber hinaus kommt der Zugang nicht.",
+  "Shared folder": "Freigegebener Ordner",
+  "Share settings": "Einstellungen der Freigabe",
+  "Port": "Port",
+  "Standard for SFTP is 22 – Hostwerk uses 2222 so it does not collide with an SSH server.": "Standard für SFTP ist 22 – Hostwerk nutzt 2222, damit es nicht mit einem SSH-Server kollidiert.",
+  "Who can connect?": "Wer darf sich verbinden?",
+  "Fingerprint": "Fingerabdruck",
+  "No user yet": "Noch kein Zugang",
+  "Remove": "Entfernen",
+  "signed in": "hat sich angemeldet",
+  "wrong password": "falsches Passwort",
+  "Password": "Passwort",
+  "New password (empty = keep)": "Neues Passwort (leer = behalten)",
+  "Home network (and the internet through a router forwarding)": "Heimnetz (und Internet über eine Router-Freigabe)",
+  "Only this PC": "Nur dieser PC",
+  "The folder and its files stay.": "Der Ordner und seine Dateien bleiben.",
+  "Add a user first": "Zuerst einen Zugang anlegen",
+  "Running": "Läuft",
+  "Off": "Aus",
+  "Could not copy": "Kopieren nicht möglich",
+  "Saved – pass the password on safely (not in the same message as the address).": "Gespeichert – gib das Passwort sicher weiter (nicht in derselben Nachricht wie die Adresse).",
+  "Saved": "Gespeichert",
+  "The folder does not exist.": "Der Ordner existiert nicht.",
+  "A whole drive cannot be shared – pick a folder.": "Ein ganzes Laufwerk lässt sich nicht freigeben – wähle einen Ordner.",
+  "The password needs at least 10 characters.": "Das Passwort braucht mindestens 10 Zeichen.",
+  "The port must be between 1024 and 65535.": "Der Port muss zwischen 1024 und 65535 liegen.",
+  "User name: 2–32 small letters, digits, _ . -, starting with a letter.": "Benutzername: 2–32 Kleinbuchstaben, Ziffern, _ . -, am Anfang ein Buchstabe.",
+  "This user name exists already.": "Diesen Benutzernamen gibt es schon.",
+  "User not found": "Zugang nicht gefunden",
+  "Add a user first.": "Zuerst einen Zugang anlegen.",
+  "$patterns": [
+    [
+      "Add a user with a folder – then start the share and pass on the address sftp://{}:{}.",
+      "Lege einen Zugang mit Ordner an – dann die Freigabe starten und die Adresse sftp://{}:{} weitergeben."
+    ],
+    [
+      "User {}",
+      "Zugang {}"
+    ],
+    [
+      "Remove the user “{}”?",
+      "Zugang „{}“ entfernen?"
+    ],
+    [
+      "{} copied",
+      "{} kopiert"
+    ],
+    [
+      "Port {} is in use – choose another one.",
+      "Port {} ist belegt – bitte einen anderen wählen."
+    ],
+    [
+      "From outside your home network, friends need a forwarding of port {} in your router (extension “Router & port forwarding”). Windows may ask once whether Hostwerk may receive connections – allow it for private networks.",
+      "Von außerhalb deines Heimnetzes brauchen Freunde eine Freigabe von Port {} in deinem Router (Erweiterung „Router & Portfreigaben“). Windows fragt eventuell einmal, ob Hostwerk Verbindungen annehmen darf – für private Netzwerke erlauben."
+    ]
+  ],
+  "uploaded": "hat hochgeladen",
+  "deleted": "hat gelöscht",
+  "Address": "Adresse"
+}
