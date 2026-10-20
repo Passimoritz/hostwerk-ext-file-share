@@ -9,7 +9,7 @@
     "de": "Einen Ordner per SFTP freigeben – z. B. damit Freunde Welten, Mods oder Fotos hochladen. Jeder Zugang mit eigenem Passwort und eigenem Ordner, auf Wunsch nur lesend; Sperre nach falschen Passwörtern und ein Protokoll aller Anmeldungen und Uploads.",
     "en": "Share a folder over SFTP – e.g. so friends can upload worlds, mods or photos. Every user with their own password and folder, read-only if you like; lock-out after wrong passwords and a log of sign-ins and uploads."
   },
-  "version": "1.0.0",
+  "version": "1.0.1",
   "author": "Hostwerk",
   "homepage": "https://github.com/Passimoritz/hostwerk-ext-file-share",
   "license": "MIT",
@@ -30,7 +30,7 @@
       "de": "Ordner per SFTP freigeben.",
       "en": "Share folders over SFTP."
     },
-    "icon": "download"
+    "icon": "folder-up"
   },
   "backend": "server/index.js",
   "ui": "ui/index.js"
