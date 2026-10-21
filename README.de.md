@@ -13,8 +13,16 @@ Einen Ordner per SFTP freigeben – z. B. damit Freunde Welten, Mods oder Fotos 
 - SFTP-Server in Hostwerk – funktioniert mit WinSCP, FileZilla, Cyberduck und jeder Handy-App
 - Zugänge mit eigenem Passwort (nur als scrypt-Hash gespeichert) und eigenem Ordner; niemand kommt darüber hinaus, Verknüpfungen nach draußen werden abgelehnt
 - Nur-Lese-Zugänge zum Herunterladen
-- Sperre für 10 Minuten nach 5 falschen Passwörtern je Adresse; Protokoll
+- **SSH-Schlüssel** je Zugang – Anmeldung ohne Passwort
+- **Befristete Zugänge** (gültig bis zu einem Tag) und eine **Speichergrenze** je Zugang – praktisch für Gäste
+- **Team-Mitglieder** (Erweiterung „Team & Benutzer“) melden sich mit ihrem Hostwerk-Passwort an und sehen je freigegebenem Dienst einen Ordner
+- **Download-Links:** ein Ordner nur lesend im Browser, ohne SFTP-Programm – von außen über Hostwerks Fernzugriff; 1, 7, 30 Tage oder unbefristet
+- **Port freigeben** mit einem Klick über die Erweiterung „Router & Portfreigaben“
+- **Passwort-Tresor:** neue Zugänge landen auf Wunsch gleich im Tresor von „Passwörter“
+- Adresse als **QR-Code** für SFTP-Apps auf dem Handy
+- Sperre für 10 Minuten nach 5 falschen Passwörtern je Adresse; Passwortprüfungen bremsen Hostwerk nie (im Hintergrund, je Adresse eine nach der anderen); Protokoll
 - Eigener Server-Schlüssel mit Fingerabdruck zum Abgleichen; Heimnetz oder nur dieser PC
+- Andere Erweiterungen dürfen Reiter auf ihrer Seite ergänzen (`allowExtensions`)
 
 ## Installieren
 
@@ -24,7 +32,7 @@ Native Erweiterungen laufen als Teil von Hostwerk (eigener Server- und Oberfläc
 
 ## Daten
 
-`data/file-share` – Einstellungen, Zugänge (nur Passwort-Hashes), Protokoll und der Server-Schlüssel. Beim Entfernen der Erweiterung bleibt das erhalten; die freigegebenen Ordner werden nie angefasst.
+`data/file-share` – Einstellungen, Zugänge (nur Passwort-Hashes und öffentliche Schlüssel), Download-Links, Protokoll und der Server-Schlüssel. Beim Entfernen der Erweiterung bleibt das erhalten; die freigegebenen Ordner werden nie angefasst.
 
 ## Entwickeln
 

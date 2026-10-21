@@ -1,5 +1,15 @@
-/* File share */
+/* File share – only what Hostwerk's kit lacks, all from the design scale */
 .fs-row { flex-wrap: wrap; }
 .fs-row code { min-width: 0; }
-.fs-events { list-style: none; margin: 0; padding: 8px 14px 12px; display: flex; flex-direction: column; gap: 8px; }
-.fs-events li { display: grid; grid-template-columns: 16px minmax(0, 1fr) auto; gap: 8px; align-items: center; }
+.fs-gap { gap: var(--sp-3); }
+.fs-min0 { min-width: 0; }
+.fs-top { align-items: start; }
+.fs-links { margin-top: var(--sp-4); }
+.fs-keys { resize: vertical; font-size: var(--fs-xs); }
+.fs-events { list-style: none; margin: 0; padding: var(--sp-2) var(--sp-4) var(--sp-3); display: flex; flex-direction: column; gap: var(--sp-2); }
+.fs-events li { display: grid; grid-template-columns: var(--sp-4) minmax(0, 1fr) auto; gap: var(--sp-2); align-items: center; }
+.fs-qr-wrap { align-items: center; text-align: center; }
+/* QR-Codes brauchen hellen Grund und dunkle Punkte – in beiden Designs */
+.fs-qr { background: #fff; padding: var(--sp-2); border-radius: var(--r-lg); width: calc(var(--sp-8) * 7.5); }
+.fs-qr svg { display: block; width: 100%; height: auto; }
+.fs-qr-text { overflow-wrap: anywhere; font-size: var(--fs-xs); }
