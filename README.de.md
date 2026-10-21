@@ -17,7 +17,7 @@ Einen Ordner per SFTP freigeben – z. B. damit Freunde Welten, Mods oder Fotos 
 - **Befristete Zugänge** (gültig bis zu einem Tag) und eine **Speichergrenze** je Zugang – praktisch für Gäste
 - **Team-Mitglieder** (Erweiterung „Team & Benutzer“) melden sich mit ihrem Hostwerk-Passwort an und sehen je freigegebenem Dienst einen Ordner
 - **Download-Links:** ein Ordner nur lesend im Browser, ohne SFTP-Programm – von außen über Hostwerks Fernzugriff; 1, 7, 30 Tage oder unbefristet
-- **Port freigeben** mit einem Klick über die Erweiterung „Router & Portfreigaben“
+- **Port freigeben** mit einem Klick über die Erweiterung „Router & Portfreigaben“ – dort mit Herkunft „Dateifreigabe“, die Automatik behält sie, und ein neuer Port nimmt sie mit
 - **Passwort-Tresor:** neue Zugänge landen auf Wunsch gleich im Tresor von „Passwörter“
 - Adresse als **QR-Code** für SFTP-Apps auf dem Handy
 - Sperre für 10 Minuten nach 5 falschen Passwörtern je Adresse; Passwortprüfungen bremsen Hostwerk nie (im Hintergrund, je Adresse eine nach der anderen); Protokoll

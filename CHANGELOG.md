@@ -1,3 +1,7 @@
+## 1.2.0
+
+- “Forward port” registers the forwarding as belonging to the file share (`router.forwards`, Router & port forwarding 1.2): the router page shows where it comes from, the automatic mode keeps it, and a new port takes the forwarding along. With an older router extension it works as before. / „Port freigeben“ meldet die Freigabe mit Besitzer an (`router.forwards`): Herkunft sichtbar, Automatik behält sie, neuer Port nimmt sie mit; ältere Router-Erweiterung wie bisher.
+
 ## 1.1.0
 
 - Password checks no longer block Hostwerk (async scrypt, one check at a time per address). / Passwortprüfungen blockieren Hostwerk nicht mehr (asynchrones scrypt, je Adresse eine Prüfung gleichzeitig).

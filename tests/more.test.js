@@ -88,3 +88,32 @@ test('SFTP: SSH key, team member mounts, expired account, storage limit', { skip
     await q.end();
   } finally { await share.stop(); }
 });
+
+test('router forwarding: with an owner through router.forwards, older router extension through its list; a new port takes the forwarding along', { skip: !ssh2 ? 'ssh2 not available' : false }, async () => {
+  const data = tmp();
+  const routes = {};
+  const r = { get: (p, fn) => { routes[`GET ${p}`] = fn; }, put: (p, fn) => { routes[`PUT ${p}`] = fn; }, post: (p, fn) => { routes[`POST ${p}`] = fn; }, delete: (p, fn) => { routes[`DELETE ${p}`] = fn; }, use: () => {} };
+  const mk = (router) => ({ id: 'file-share', ctx: { paths: { data }, settings: { get: () => ({}), save: () => {} }, router }, router: r, publicRouter: r, lib: () => ssh2, t: (s) => s, error: (st, m) => Object.assign(new Error(m), { status: st }), broadcast: () => {}, log: () => {}, on: () => {} });
+  const call = async (key, body) => { let out; await routes[key]({ body, params: {}, query: {} }, { json: (x) => { out = x; } }); return out; };
+  const idx = require('../server/index');
+  // Router 1.2: router.forwards mit Besitzer
+  const calls = [];
+  const owned = [];
+  const forwards = {
+    add: async (x, owner) => { calls.push(['add', x.port, x.protocol, owner]); owned.push({ port: x.port, protocol: x.protocol, owner }); return { port: x.port, client: '192.168.1.5' }; },
+    remove: async (x, owner) => { calls.push(['remove', x.port, owner]); owned.splice(owned.findIndex((f) => f.port === x.port), 1); return true; },
+    owned: (owner) => owned.filter((f) => f.owner === owner),
+  };
+  idx.activate(mk({ forward: async () => { throw new Error('old way used'); }, forwards }));
+  assert.deepStrictEqual(await call('POST /file-share/forward'), { ok: true, port: 2222, client: '192.168.1.5' });
+  await call('PUT /file-share/settings', { port: 2300 });
+  assert.deepStrictEqual(calls, [['add', 2222, 'TCP', 'file-share'], ['remove', 2222, 'file-share'], ['add', 2300, 'TCP', 'file-share']]);
+  idx.deactivate();
+  // Ältere Router-Erweiterung: forward + eigene Liste wie von Hand angelegt
+  const old = { cfg: { extra: [{ port: 2300, protocol: 'TCP', label: 'x' }] }, forward: async (x) => ({ port: x.port, protocol: x.protocol, client: '10.0.0.2' }) };
+  idx.activate(mk(old));
+  assert.strictEqual((await call('POST /file-share/forward')).client, '10.0.0.2');
+  assert.deepStrictEqual(old.cfg.extra, [{ port: 2300, protocol: 'TCP', label: 'SFTP (file share)' }]);
+  idx.deactivate();
+  fs.rmSync(data, { recursive: true, force: true });
+});

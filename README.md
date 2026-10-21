@@ -17,7 +17,7 @@ Share a folder over SFTP – e.g. so friends can upload worlds, mods or photos. 
 - **Time-limited users** (valid until a day) and a **storage limit** per user – handy for guests
 - **Team members** (extension “Team & users”) sign in with their Hostwerk password and see one folder per service shared with them
 - **Download links:** a folder read-only in the browser, without an SFTP program – from outside through Hostwerk’s remote access; 1, 7, 30 days or without limit
-- **Forward port** with one click through the extension “Router & port forwarding”
+- **Forward port** with one click through the extension “Router & port forwarding” – shown there as coming from the file share, kept by the automatic mode and moved along when you change the port
 - **Password vault:** new users go straight into the vault of “Passwords” if you like
 - Address as **QR code** for SFTP apps on the phone
 - Lock-out for 10 minutes after 5 wrong passwords per address; password checks never block Hostwerk (checked in the background, one at a time per address); activity log

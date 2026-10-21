@@ -94,6 +94,22 @@ function activate(host) {
       events: events.slice(0, 30),
     };
   };
+  const LABEL = 'SFTP (file share)';
+  /** Port im Router freigeben und merken: router.forwards (mit Besitzer) oder – Router-Erweiterung vor 1.2 – cfg.extra. */
+  const forwardPort = async (r, port) => {
+    if (r.forwards && typeof r.forwards.add === 'function') return r.forwards.add({ port, protocol: 'TCP', label: LABEL }, host.id);
+    const x = await r.forward({ port, protocol: 'TCP', label: LABEL });
+    if (r.cfg && Array.isArray(r.cfg.extra)) { r.cfg.extra = [...r.cfg.extra.filter((e) => !(e.port === x.port && e.protocol === x.protocol)), { port: x.port, protocol: x.protocol, label: LABEL }]; ctx.settings.save(); }
+    return x;
+  };
+  /** Neuer Port: eine eigene Freigabe des alten Ports zieht mit (nur mit router.forwards – sonst weiß niemand, wem sie gehört). */
+  const moveForward = async (from, to) => {
+    const r = ctx.router;
+    if (!r || !r.forwards || typeof r.forwards.owned !== 'function' || from === to) return;
+    if (!r.forwards.owned(host.id).some((f) => f.port === from && f.protocol === 'TCP')) return;
+    await r.forwards.remove({ port: from, protocol: 'TCP' }, host.id).catch(() => {});
+    await r.forwards.add({ port: to, protocol: 'TCP', label: LABEL }, host.id).catch((e) => host.log('forwarding the new port failed:', e.message));
+  };
   const start = async () => { const s = settings(); await share.start(s.port, s.network === 'lan' ? '0.0.0.0' : '127.0.0.1'); write('settings', { ...s, running: true }); };
   const NAME = /^[a-z][a-z0-9_.-]{1,31}$/;
   const checkFolder = (f) => { const p = path.resolve(String(f || '')); if (!f || !fs.existsSync(p) || !fs.statSync(p).isDirectory()) throw host.error(400, 'The folder does not exist.'); if (p === path.parse(p).root) throw host.error(400, 'A whole drive cannot be shared – pick a folder.'); return p; };
@@ -115,12 +131,13 @@ function activate(host) {
 
   host.router.get('/file-share', (req, res) => res.json(view()));
   host.router.put('/file-share/settings', async (req, res) => {
-    const b = req.body || {}; const s = settings();
+    const b = req.body || {}; const s = settings(); const oldPort = s.port;
     if (b.port !== undefined) { const n = Number(b.port); if (!Number.isInteger(n) || n < 1024 || n > 65535) throw host.error(400, 'The port must be between 1024 and 65535.'); s.port = n; }
     if (['lan', 'local'].includes(b.network)) s.network = b.network;
     if (b.team && typeof b.team === 'object') { if (typeof b.team.enabled === 'boolean') s.team.enabled = b.team.enabled; if (typeof b.team.readOnly === 'boolean') s.team.readOnly = b.team.readOnly; }
     write('settings', s);
     if (share.server && (b.port !== undefined || b.network !== undefined)) { await share.stop(); await start(); }
+    if (s.port !== oldPort) await moveForward(oldPort, s.port);
     res.json(view());
   });
   host.router.post('/file-share/accounts', (req, res) => {
@@ -149,13 +166,12 @@ function activate(host) {
   host.router.post('/file-share/start', async (req, res) => { const s = settings(); if (!accounts().length && !s.team.enabled) throw host.error(409, 'Add a user first.'); await start(); res.json(view()); });
   host.router.post('/file-share/stop', async (req, res) => { await share.stop(); write('settings', { ...settings(), running: false }); res.json(view()); });
 
-  // Portfreigabe über die Erweiterung „Router & Portfreigaben“ – gemerkt wie dort von Hand angelegte (Router-Automatik hält sie)
+  // Portfreigabe über die Erweiterung „Router & Portfreigaben“ – mit Besitzer über router.forwards (ab Router 1.2: die
+  // Automatik hält sie, die Router-Seite zeigt „Dateifreigabe“ als Herkunft); ältere Router-Erweiterung: wie von Hand gemerkt
   host.router.post('/file-share/forward', async (req, res) => {
     const r = ctx.router;
     if (!r || typeof r.forward !== 'function') throw host.error(409, 'Install the extension “Router & port forwarding” first.');
-    const port = settings().port;
-    const x = await r.forward({ port, protocol: 'TCP', label: 'SFTP (file share)' });
-    if (r.cfg && Array.isArray(r.cfg.extra)) { r.cfg.extra = [...r.cfg.extra.filter((e) => !(e.port === x.port && e.protocol === x.protocol)), { port: x.port, protocol: x.protocol, label: 'SFTP (file share)' }]; ctx.settings.save(); }
+    const x = await forwardPort(r, settings().port);
     res.json({ ok: true, port: x.port, client: x.client });
   });
   host.router.get('/file-share/qr', async (req, res) => {
