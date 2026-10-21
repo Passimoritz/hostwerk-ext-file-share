@@ -11,6 +11,8 @@
  *   GET    /api/file-share/qr?text=sftp://…   → { svg } QR code for the address
  *   POST   /api/file-share/links              → { folder, label, days } download link; DELETE /api/file-share/links/:token
  *   GET    /api/file-share/pub/<token>/…      → public, read-only: folder listing and downloads (also through remote access)
+ *   GET    /api/file-share/resolve?root=&path= → { full } folder from Hostwerk's file roots (file browser, SDK 3.2)
+ *   GET    /api/file-share/marks?root=&path=   → { children: { name: { users, links } }, self: [shares of this folder] }
  * Data: data/file-share/{settings,accounts,links,events}.json + host_key (private key of this server, never leaves the PC)
  */
 const fs = require('fs');
@@ -19,6 +21,7 @@ const path = require('path');
 const crypto = require('crypto');
 const { Share, Guard, hashPass, parseKey } = require('./sftpd');
 const links = require('./links');
+const shares = require('./shares');
 
 let share = null;
 
@@ -83,12 +86,12 @@ function activate(host) {
     try { const st = ctx.remote && ctx.remote.status(); if (!st || !st.running) return []; return [...(st.domain ? [`https://${st.domain}${st.port === 443 ? '' : `:${st.port}`}`] : []), ...st.urls.map((u) => u.replace(/\/$/, ''))]; } catch { return []; }
   };
   const view = () => {
-    const s = settings(); const now = Date.now();
+    const s = settings(); const now = Date.now(); const used = shares.lastUse(events); // zuletzt benutzt (Anmeldung, Upload, Download)
     return {
       running: !!share.server, port: share.server ? share.port : s.port, network: s.network,
       addresses: s.network === 'lan' ? addresses() : [{ name: 'localhost', address: '127.0.0.1' }], fingerprint,
-      accounts: accounts().map(({ hash, keys, ...a }) => ({ ...a, hasPassword: !!hash, keys: (keys || []).map((k) => { const p = parseKey(ssh2, k); return { line: k, type: p ? p.type : '?', comment: p ? p.comment || '' : '' }; }), exists: fs.existsSync(a.folder), expired: !!(a.expires && a.expires <= now) })),
-      links: linkList().map((l) => ({ ...l, expired: !!(l.expires && l.expires <= now), exists: fs.existsSync(l.folder) })), linkBases: linkBases(),
+      accounts: accounts().map(({ hash, keys, ...a }) => ({ ...a, hasPassword: !!hash, keys: (keys || []).map((k) => { const p = parseKey(ssh2, k); return { line: k, type: p ? p.type : '?', comment: p ? p.comment || '' : '' }; }), exists: fs.existsSync(a.folder), expired: !!(a.expires && a.expires <= now), last: used[a.name] || null })),
+      links: linkList().map((l) => ({ ...l, expired: !!(l.expires && l.expires <= now), exists: fs.existsSync(l.folder), last: used[l.label || path.basename(l.folder)] || null })), linkBases: linkBases(),
       team: { available: !!(ctx.users && typeof ctx.users.login === 'function'), ...s.team, members: ctx.users && Array.isArray(ctx.users.list) ? ctx.users.list.filter((u) => u.enabled !== false && u.passHash).length : 0 },
       router: !!(ctx.router && typeof ctx.router.forward === 'function'), passwords: !!ctx.pw,
       events: events.slice(0, 30),
@@ -190,6 +193,13 @@ function activate(host) {
     write('links', list); res.json(view());
   });
   host.router.delete('/file-share/links/:token', (req, res) => { write('links', linkList().filter((l) => l.token !== req.params.token)); res.json(view()); });
+  // Datei-Browser (Hostwerk mit SDK 3.2): Ordner aus Hostwerks Datei-Wurzeln auflösen, Kennzeichen und Freigaben je Ordner
+  const resolveIn = (root, rel) => { if (!ctx.files || typeof ctx.files.resolve !== 'function') throw host.error(501, 'Not available'); return ctx.files.resolve(String(root || ''), String(rel || '')).full; };
+  host.router.get('/file-share/resolve', (req, res) => res.json({ full: resolveIn(req.query.root, req.query.path) }));
+  host.router.get('/file-share/marks', (req, res) => {
+    const full = resolveIn(req.query.root, req.query.path);
+    res.json({ folder: full, children: shares.marksIn(full, accounts(), linkList()), self: shares.sharesOf(full, accounts(), linkList(), events) });
+  });
   const pubGuard = new Guard({ max: 20, ms: 10 * 60000 });
   host.publicRouter.use('/file-share/pub/:token', (req, res) => {
     const ip = req.ip || '?';

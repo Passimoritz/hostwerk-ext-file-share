@@ -1,3 +1,8 @@
+## 1.3.0
+
+- New interface: “Share a folder” as a guided flow (folder, for whom, rights, limits, done with address, QR code and “Copy”), the shares as one list with last use, short connection guides per device, the SFTP state on top. / Neue Oberfläche: „Ordner freigeben“ als geführter Ablauf, Freigaben als eine Liste mit „zuletzt benutzt“, kurze Verbindungs-Anleitungen je Gerät, Zustand des SFTP-Servers oben.
+- In Hostwerk’s file browser (SDK 3.2): right-click “Share …” on folders, a mark on shared folders, the shares of the open folder as a section. / Im Datei-Browser: Rechtsklick „Freigeben …“, Zeichen an freigegebenen Ordnern, Freigaben des offenen Ordners als Abschnitt.
+
 ## 1.2.0
 
 - “Forward port” registers the forwarding as belonging to the file share (`router.forwards`, Router & port forwarding 1.2): the router page shows where it comes from, the automatic mode keeps it, and a new port takes the forwarding along. With an older router extension it works as before. / „Port freigeben“ meldet die Freigabe mit Besitzer an (`router.forwards`): Herkunft sichtbar, Automatik behält sie, neuer Port nimmt sie mit; ältere Router-Erweiterung wie bisher.
