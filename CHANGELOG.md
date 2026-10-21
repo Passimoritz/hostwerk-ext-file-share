@@ -1,3 +1,7 @@
+## 1.3.1
+
+- Lives where it belongs: Files (right-click, marks and the section of the open folder) – no own sidebar entry any more (Hostwerk 3.0+); the full page stays under Extensions → Open and can be pinned in the sidebar settings. / Steckt jetzt dort, wo sie hingehört: Dateien (Rechtsklick, Kennzeichen und Abschnitt zum geöffneten Ordner) – kein eigener Seitenleisten-Eintrag mehr (Hostwerk 3.0+); die ganze Seite bleibt unter Erweiterungen → Öffnen und lässt sich in den Seitenleisten-Einstellungen anheften.
+
 ## 1.3.0
 
 - New interface: “Share a folder” as a guided flow (folder, for whom, rights, limits, done with address, QR code and “Copy”), the shares as one list with last use, short connection guides per device, the SFTP state on top. / Neue Oberfläche: „Ordner freigeben“ als geführter Ablauf, Freigaben als eine Liste mit „zuletzt benutzt“, kurze Verbindungs-Anleitungen je Gerät, Zustand des SFTP-Servers oben.

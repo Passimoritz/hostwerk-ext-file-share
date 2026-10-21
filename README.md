@@ -10,6 +10,7 @@ Share a folder over SFTP – e.g. so friends can upload worlds, mods or photos. 
 
 ## What it does
 
+- **Where:** Files (right-click, marks and the section of the open folder) – no own sidebar entry since 1.3.1; the full page stays under Extensions → Open
 - **“Share a folder” as a guided flow:** folder → for whom (access with password or SSH key, download link, team members) → rights (read only / read and write) → expiry and storage limit → done with address, QR code and “Copy”
 - **Shares as one calm list:** who, which folder, rights, until when, last used – copy, QR code, edit and remove right there (also with right-click)
 - **How others connect** – short steps for Windows, macOS, phone and FileZilla, details behind ⓘ; the SFTP state with start/stop on top

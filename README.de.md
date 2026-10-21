@@ -10,6 +10,7 @@ Einen Ordner per SFTP freigeben – z. B. damit Freunde Welten, Mods oder Fotos 
 
 ## Was sie kann
 
+- **Wo:** Dateien (Rechtsklick, Kennzeichen und Abschnitt zum geöffneten Ordner) – seit 1.3.1 ohne eigenen Seitenleisten-Eintrag; die ganze Seite bleibt unter Erweiterungen → Öffnen
 - **„Ordner freigeben“ als geführter Ablauf:** Ordner → für wen (Zugang mit Passwort oder SSH-Schlüssel, Download-Link, Team-Mitglieder) → Rechte (nur lesen / lesen und schreiben) → Ablauf und Speichergrenze → fertig mit Adresse, QR-Code und „Kopieren“
 - **Freigaben als ruhige Liste:** wer, welcher Ordner, Rechte, bis wann, zuletzt benutzt – Kopieren, QR-Code, Bearbeiten und Entfernen direkt dort (auch per Rechtsklick)
 - **So verbinden sich andere** – kurze Schritte für Windows, macOS, Handy und FileZilla, Details hinter ⓘ; der Zustand des SFTP-Servers mit Start/Stopp oben
