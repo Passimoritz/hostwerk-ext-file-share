@@ -13,7 +13,7 @@ Share a folder over SFTP – e.g. so friends can upload worlds, mods or photos. 
 - **Where:** Files (right-click, marks and the section of the open folder) – no own sidebar entry since 1.3.1; the full page stays under Extensions → Open
 - **“Share a folder” as a guided flow:** folder → for whom (access with password or SSH key, download link, team members) → rights (read only / read and write) → expiry and storage limit → done with address, QR code and “Copy”
 - **Shares as one calm list:** who, which folder, rights, until when, last used – copy, QR code, edit and remove right there (also with right-click)
-- **How others connect** – short steps for Windows, macOS, phone and FileZilla, details behind ⓘ; the SFTP state with start/stop on top
+- **How others connect …** – a dialog with short steps for Windows, macOS, phone and FileZilla; the SFTP state with start/stop on top
 - **In Hostwerk’s file browser** (Hostwerk with SDK 3.2): right-click a folder → “Share …” opens the flow with that folder, shared folders get a small mark with “Shared with …”, and the open folder shows its shares on the right. Older Hostwerk: the page works on its own
 - SFTP server built into Hostwerk – works with WinSCP, FileZilla, Cyberduck and every phone app
 - Users with their own password (stored only as scrypt hash) and their own folder; nobody gets above it, links pointing outside are refused

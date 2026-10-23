@@ -1,3 +1,7 @@
+## 1.3.2
+
+- “How others connect” is a button in the page head (side sheet in newer Hostwerk, dialog before) instead of a card; empty share list and activity use Hostwerk’s empty tile / „So verbinden sich andere“ ist ein Knopf im Seitenkopf (in neueren Hostwerk-Versionen als Seitenblatt, sonst als Dialog) statt einer Karte; leere Freigabeliste und Aktivität nutzen Hostwerks Leer-Kachel
+
 ## 1.3.1
 
 - Lives where it belongs: Files (right-click, marks and the section of the open folder) – no own sidebar entry any more (Hostwerk 3.0+); the full page stays under Extensions → Open and can be pinned in the sidebar settings. / Steckt jetzt dort, wo sie hingehört: Dateien (Rechtsklick, Kennzeichen und Abschnitt zum geöffneten Ordner) – kein eigener Seitenleisten-Eintrag mehr (Hostwerk 3.0+); die ganze Seite bleibt unter Erweiterungen → Öffnen und lässt sich in den Seitenleisten-Einstellungen anheften.

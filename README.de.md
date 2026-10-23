@@ -13,7 +13,7 @@ Einen Ordner per SFTP freigeben – z. B. damit Freunde Welten, Mods oder Fotos 
 - **Wo:** Dateien (Rechtsklick, Kennzeichen und Abschnitt zum geöffneten Ordner) – seit 1.3.1 ohne eigenen Seitenleisten-Eintrag; die ganze Seite bleibt unter Erweiterungen → Öffnen
 - **„Ordner freigeben“ als geführter Ablauf:** Ordner → für wen (Zugang mit Passwort oder SSH-Schlüssel, Download-Link, Team-Mitglieder) → Rechte (nur lesen / lesen und schreiben) → Ablauf und Speichergrenze → fertig mit Adresse, QR-Code und „Kopieren“
 - **Freigaben als ruhige Liste:** wer, welcher Ordner, Rechte, bis wann, zuletzt benutzt – Kopieren, QR-Code, Bearbeiten und Entfernen direkt dort (auch per Rechtsklick)
-- **So verbinden sich andere** – kurze Schritte für Windows, macOS, Handy und FileZilla, Details hinter ⓘ; der Zustand des SFTP-Servers mit Start/Stopp oben
+- **So verbinden sich andere …** – ein Dialog mit kurzen Schritten für Windows, macOS, Handy und FileZilla; der Zustand des SFTP-Servers mit Start/Stopp oben
 - **Im Datei-Browser von Hostwerk** (Hostwerk mit SDK 3.2): Rechtsklick auf einen Ordner → „Freigeben …“ startet den Ablauf mit diesem Ordner, freigegebene Ordner tragen ein kleines Zeichen mit „Freigegeben für …“, und der offene Ordner zeigt rechts seine Freigaben. Älteres Hostwerk: die Seite funktioniert für sich wie bisher
 - SFTP-Server in Hostwerk – funktioniert mit WinSCP, FileZilla, Cyberduck und jeder Handy-App
 - Zugänge mit eigenem Passwort (nur als scrypt-Hash gespeichert) und eigenem Ordner; niemand kommt darüber hinaus, Verknüpfungen nach draußen werden abgelehnt

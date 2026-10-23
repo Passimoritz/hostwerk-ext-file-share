@@ -1,11 +1,15 @@
 import { useEffect, useState } from 'react';
 import { FolderUp, Play, Square, UserPlus, Trash2, KeyRound, Copy, Settings2, Lock, Eye, Upload, LogIn, ShieldAlert, Network, QrCode, Router, Link2, Download, Users, AlertTriangle, RotateCcw, CalendarClock, HardDrive, Share2, Check, ChevronRight, ChevronLeft, Monitor, Laptop, Smartphone, AppWindow, Pencil } from 'lucide-react';
 import { get, post, put, del, useApi, on } from '@hostwerk/api';
-import { Btn, Seg, Field, Modal, Empty, Loading, Callout, InfoTip, PathInput, Switch, toast, confirmDialog } from '@hostwerk/ui';
+import { Btn, Seg, Field, Modal, Empty, Loading, Callout, InfoTip, PathInput, Switch, TileEmpty, toast, confirmDialog } from '@hostwerk/ui';
+import * as HUI from '@hostwerk/ui';
 import { contextMenu } from '@hostwerk/kit';
 import { t } from '@hostwerk/i18n';
 import { AddonTabs } from './addons';
 import './style.css';
+
+// Seitenblatt aus Hostwerk (neuere Versionen) – die Seite bleibt daneben sichtbar; ältere Versionen zeigen denselben Inhalt als Dialog
+const Sheet = HUI.SideSheet || Modal;
 
 /*
  * File share (SFTP). 1.3: one clear way in – “Share a folder” as a guided flow (folder → for whom → rights → limits →
@@ -231,17 +235,18 @@ const GUIDES = {
   phone: { icon: Smartphone, label: 'Phone', steps: ['Android: Material Files or Solid Explorer · iPhone: FE File Explorer or Secure ShellFish.', 'Add an SFTP server – or scan the QR code of the address.', 'Enter user name and password in the app.'], info: 'The iPhone “Files” app does not speak SFTP on its own; apps like Secure ShellFish add it there.' },
   filezilla: { icon: AppWindow, label: 'FileZilla', steps: ['File → Site Manager → New site.', 'Protocol “SFTP – SSH File Transfer Protocol”, host, port, user name and password.', 'Connect and compare the fingerprint.'], info: 'Download FileZilla only from filezilla-project.org – other sites bundle extra software.' },
 };
-function ConnectGuide() {
+/** Anleitung „So verbinden sich andere“ – als Dialog hinter einem Knopf, statt dauerhaft eine Karte zu belegen. */
+function ConnectGuide({ onClose }) {
   const [cur, setCur] = useState('windows');
   const g = GUIDES[cur];
   return (
-    <div className="card">
-      <div className="card-head"><Network size={16} /><h3>How others connect</h3><InfoTip pop title="How others connect">{g.info}</InfoTip></div>
-      <div className="card-body stack">
+    <Sheet title="How others connect" onClose={onClose} footer={<Btn onClick={onClose}>Close</Btn>}>
+      <div className="stack">
         <Seg value={cur} onChange={setCur} options={Object.entries(GUIDES).map(([id, x]) => ({ id, label: x.label, icon: x.icon }))} />
         <ol className="fs-guide">{g.steps.map((x) => <li key={x} className="small">{t(x)}</li>)}</ol>
+        <p className="small muted">{t(g.info)}</p>
       </div>
-    </div>
+    </Sheet>
   );
 }
 
@@ -252,6 +257,7 @@ function FileSharePage({ ext, query }) {
   const [cfg, setCfg] = useState(false);
   const [qr, setQr] = useState(null);
   const [wizard, setWizard] = useState(null); // { folder }
+  const [guide, setGuide] = useState(false);
   const s = st.data;
   useEffect(() => on('file-share', () => st.reload({ silent: true })), [st.reload]); // eslint-disable-line react-hooks/exhaustive-deps
   // Aus dem Datei-Browser: ?action=share&target=<root>|<pfad> → Ablauf mit vorgewähltem Ordner
@@ -291,6 +297,7 @@ function FileSharePage({ ext, query }) {
           <p>Share a folder over SFTP or as a download link – for worlds, mods or photos.</p>
         </div>
         <div className="actions">
+          <Btn className="sm ghost" icon={Network} onClick={() => setGuide(true)}>How others connect …</Btn>
           <Btn className="sm ghost" icon={Settings2} onClick={() => setCfg(true)}>Settings</Btn>
           <Btn className="sm primary" icon={Share2} onClick={() => setWizard({ folder: '' })}>Share a folder</Btn>
         </div>
@@ -314,7 +321,7 @@ function FileSharePage({ ext, query }) {
       </div></div>
       <div className="card mb">
         <div className="card-head"><Share2 size={16} /><h3>Shares</h3><span className="badge">{rows.length}</span></div>
-        {!rows.length ? <Empty icon={Share2} title="Nothing shared yet" text="Pick a folder and decide who gets it – an access for SFTP programs or a download link." action={<Btn className="primary" icon={Share2} onClick={() => setWizard({ folder: '' })}>Share a folder</Btn>} /> : (
+        {!rows.length ? <TileEmpty icon={Share2} text="Nothing shared yet. Pick a folder and decide who gets it – an access for SFTP programs or a download link." action={t('Share a folder')} onClick={() => setWizard({ folder: '' })} /> : (
           <ul className="fs-shares">{rows.map((r) => (
             <li key={r.key} className={`fs-share ${r.expired ? 'is-old' : ''}`} onContextMenu={(e) => menu(e, r)}>
               {r.kind === 'link' ? <Link2 size={16} className="muted" aria-hidden="true" /> : <KeyRound size={16} className="muted" aria-hidden="true" />}
@@ -332,16 +339,14 @@ function FileSharePage({ ext, query }) {
           ))}</ul>
         )}
       </div>
-      <div className="grid grid-2 fs-top">
-        <ConnectGuide />
-        <div className="card">
-          <div className="card-head"><LogIn size={16} /><h3>Activity</h3></div>
-          {!s.events.length ? <div className="card-body small muted">Sign-ins, uploads and wrong passwords appear here.</div> : (
+      <div className="card">
+          <div className="card-head"><LogIn size={16} /><h3>Activity</h3>{s.events.length > 0 && <span className="badge">{s.events.length}</span>}</div>
+          {!s.events.length ? <TileEmpty icon={LogIn} text="Sign-ins, uploads and wrong passwords appear here." /> : (
             <ul className="fs-events">{s.events.map((e, i) => { const E = EVENT[e.type] || EVENT.login; return <li key={i} className={e.type === 'fail' || e.type === 'quota' ? 'c-err' : ''}><E.icon size={13} aria-hidden="true" /><span className="small"><b>{e.user}</b> {t(E.text)}{e.path ? <> <code>{e.path}</code></> : null}</span><span className="tiny muted">{e.ip} · {when(e.t)}</span></li>; })}</ul>
           )}
-        </div>
       </div>
       </AddonTabs>
+      {guide && <ConnectGuide onClose={() => setGuide(false)} />}
       {user && <UserForm user={user} s={s} onClose={() => setUser(null)} onSaved={(d) => st.setData(d)} />}
       {cfg && <Settings s={s} onClose={() => setCfg(false)} onSaved={(d) => st.setData(d)} />}
       {qr && <QrDialog text={qr} onClose={() => setQr(null)} />}

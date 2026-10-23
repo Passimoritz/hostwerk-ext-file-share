@@ -133,6 +133,8 @@
   "At most 50 links – remove old ones first.": "Höchstens 50 Links – lösche zuerst alte.",
   "A link is valid for 1 to 365 days (or without limit).": "Ein Link gilt 1 bis 365 Tage (oder unbefristet).",
   "SFTP (file share)": "SFTP (Dateifreigabe)",
+  "How others connect …": "So verbinden sich andere …",
+  "Nothing shared yet. Pick a folder and decide who gets it – an access for SFTP programs or a download link.": "Noch nichts freigegeben. Wähle einen Ordner und bestimme, wer ihn bekommt – einen Zugang für SFTP-Programme oder einen Download-Link.",
   "$patterns": [
     [
       "Add a user with a folder – then start the share and pass on the address sftp://{}:{}.",

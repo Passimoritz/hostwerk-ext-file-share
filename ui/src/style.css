@@ -3,7 +3,6 @@
 .fs-row code { min-width: 0; }
 .fs-gap { gap: var(--sp-3); }
 .fs-min0 { min-width: 0; }
-.fs-top { align-items: start; }
 .fs-links { margin-top: var(--sp-4); }
 .fs-keys { resize: vertical; font-size: var(--fs-xs); }
 .fs-events { list-style: none; margin: 0; padding: var(--sp-2) var(--sp-4) var(--sp-3); display: flex; flex-direction: column; gap: var(--sp-2); }
