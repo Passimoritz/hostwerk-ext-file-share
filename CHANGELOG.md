@@ -1,3 +1,7 @@
+## 1.3.3
+
+- New animated icon and banner in the common Hostwerk style (isometric block). / Neues animiertes Symbol und Banner im gemeinsamen Hostwerk-Stil (isometrischer Block).
+
 ## 1.3.2
 
 - “How others connect” is a button in the page head (side sheet in newer Hostwerk, dialog before) instead of a card; empty share list and activity use Hostwerk’s empty tile / „So verbinden sich andere“ ist ein Knopf im Seitenkopf (in neueren Hostwerk-Versionen als Seitenblatt, sonst als Dialog) statt einer Karte; leere Freigabeliste und Aktivität nutzen Hostwerks Leer-Kachel

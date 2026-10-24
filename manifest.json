@@ -9,7 +9,7 @@
     "de": "Einen Ordner per SFTP oder als Download-Link freigeben – z. B. damit Freunde Welten, Mods oder Fotos hochladen. Geführt in wenigen Schritten (Ordner, für wen, Rechte, Ablauf), jeder Zugang mit eigenem Passwort oder SSH-Schlüssel, auf Wunsch nur lesend; Sperre nach falschen Passwörtern, Protokoll – und direkt im Datei-Browser per Rechtsklick „Freigeben …“.",
     "en": "Share a folder over SFTP or as a download link – e.g. so friends can upload worlds, mods or photos. Guided in a few steps (folder, for whom, rights, expiry), every access with its own password or SSH key, read-only if you like; lock-out after wrong passwords, a log – and right in the file browser with right-click “Share …”."
   },
-  "version": "1.3.2",
+  "version": "1.3.3",
   "author": "Hostwerk",
   "homepage": "https://github.com/Passimoritz/hostwerk-ext-file-share",
   "license": "MIT",
