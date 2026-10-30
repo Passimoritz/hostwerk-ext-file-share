@@ -222,7 +222,7 @@ function Finished({ done, s }) {
       {done.password && <div className="row-tight fs-row"><span className="small muted">{t('Password')}:</span><code className="grow">{done.password}</code><Btn className="sm ghost" icon={Copy} onClick={() => copy(done.password, 'Password')}>Copy</Btn></div>}
       <div className="fs-qr-wrap"><QrBox text={text} /></div>
       {done.password && <Callout kind="info" dismissible={false}>Pass the password on separately – not in the same message as the address.</Callout>}
-      {done.local && <Callout kind="warn" dismissible={false}>Remote access is off – the links only work on this PC. Turn it on under Live → Remote access.</Callout>}
+      {done.local && <Callout kind="warn" dismissible={false}>Remote access is off – the links only work on this PC. Turn it on under Go live → Access → Remote access.</Callout>}
       {!s.running && done.kind !== 'link' && <Callout kind="info" dismissible={false}>The SFTP server is still off – start it on the page so others can connect.</Callout>}
     </div>
   );

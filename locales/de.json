@@ -69,7 +69,7 @@
   "Download links": "Download-Links",
   "A folder to download in the browser, without an SFTP program – read only. From outside it works through Hostwerk’s remote access.": "Ein Ordner zum Herunterladen im Browser, ohne SFTP-Programm – nur lesen. Von außen klappt das über Hostwerks Fernzugriff.",
   "New link": "Neuer Link",
-  "Remote access is off – the links only work on this PC. Turn it on under Live → Remote access.": "Der Fernzugriff ist aus – die Links gehen nur auf diesem PC. Einschalten unter Livebetrieb → Fernzugriff.",
+  "Remote access is off – the links only work on this PC. Turn it on under Go live → Access → Remote access.": "Der Fernzugriff ist aus – die Links gehen nur auf diesem PC. Einschalten unter Livebetrieb → Zugriff → Fernzugriff.",
   "No links yet. A link shows one folder in the browser – handy for photos or a world download.": "Noch keine Links. Ein Link zeigt einen Ordner im Browser – praktisch für Fotos oder eine Welt zum Herunterladen.",
   "no limit": "unbefristet",
   "SSH keys (optional)": "SSH-Schlüssel (optional)",
