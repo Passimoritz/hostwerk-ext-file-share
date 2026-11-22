@@ -1,10 +1,10 @@
 import { useEffect, useState } from 'react';
-import { FolderUp, Play, Square, UserPlus, Trash2, KeyRound, Copy, Settings2, Lock, Eye, Upload, LogIn, ShieldAlert, Network, QrCode, Router, Link2, Download, Users, AlertTriangle, RotateCcw, CalendarClock, HardDrive, Share2, Check, ChevronRight, ChevronLeft, Monitor, Laptop, Smartphone, AppWindow, Pencil } from 'lucide-react';
+import { FolderUp, Play, Square, UserPlus, Trash2, KeyRound, Copy, Settings2, Lock, Eye, Upload, LogIn, ShieldAlert, Network, QrCode, Router, Link2, Download, Users, AlertTriangle, RotateCcw, CalendarClock, HardDrive, Share2, Check, ChevronRight, ChevronLeft, Monitor, Laptop, Smartphone, AppWindow, Pencil, Unplug, Plug } from 'lucide-react';
 import { get, post, put, del, useApi, on } from '@hostwerk/api';
 import { Btn, Seg, Field, Modal, Empty, Loading, Callout, InfoTip, PathInput, Switch, TileEmpty, toast, confirmDialog } from '@hostwerk/ui';
 import * as HUI from '@hostwerk/ui';
 import { contextMenu } from '@hostwerk/kit';
-import { t } from '@hostwerk/i18n';
+import { t, pl } from '@hostwerk/i18n';
 import { AddonTabs } from './addons';
 import './style.css';
 
@@ -31,6 +31,33 @@ const folderName = (f) => String(f || '').split(/[\\/]/).filter(Boolean).pop() |
 /** Ordner aus dem Datei-Browser: „<root>|<pfad>“ (root kann selbst „:“ enthalten, z. B. mc:survival) */
 const shareHref = (root, rel) => `/ext/file-share?action=share&target=${encodeURIComponent(`${root}|${rel}`)}&at=${Date.now()}`;
 
+/** Warnung, wenn der Ordner Hostwerks eigene Daten (data/, config/) ist oder enthält – dort liegen Schlüssel und Konten. */
+function SensitiveWarning({ folder }) {
+  const [hit, setHit] = useState(false);
+  useEffect(() => {
+    let alive = true; setHit(false);
+    // kurz warten – beim Tippen nicht je Zeichen fragen
+    const timer = folder ? setTimeout(() => get(`/file-share/folder-check?folder=${encodeURIComponent(folder)}`).then((r) => alive && setHit(!!r.sensitive), () => {}), 300) : null;
+    return () => { alive = false; clearTimeout(timer); };
+  }, [folder]);
+  return hit ? <Callout kind="warn" dismissible={false}>This folder is or contains Hostwerk’s own data folder – with the server key, accounts and access data. Better share a sub folder with only the files that are meant for others.</Callout> : null;
+}
+
+/** Abgelaufenen oder aufgebrauchten Link verlängern: neue Gültigkeit ab heute (der Download-Zähler beginnt neu). */
+function ExtendLink({ link, onClose, onSaved }) {
+  const [days, setDays] = useState('7');
+  const [busy, setBusy] = useState(false);
+  const save = async () => { setBusy(true); try { onSaved(await put(`/file-share/links/${link.token}`, { days: Number(days) })); toast.success('Link extended'); onClose(); } catch (e) { toast.error(e); } setBusy(false); };
+  return (
+    <Modal title="Extend link" onClose={onClose} footer={<><Btn onClick={onClose}>Cancel</Btn><Btn className="primary" icon={CalendarClock} disabled={busy} onClick={save}>Extend</Btn></>}>
+      <div className="stack">
+        <Field label="Valid from today for"><Seg value={days} onChange={setDays} options={[{ id: '1', label: '1 day' }, { id: '7', label: '7 days' }, { id: '30', label: '30 days' }, { id: '0', label: 'No limit' }]} /></Field>
+        {link.exhausted && <span className="small muted">{t('The download limit was reached – the count starts again at 0.')}</span>}
+      </div>
+    </Modal>
+  );
+}
+
 /* ---------------- Zugang bearbeiten (bestehende Zugänge) ---------------- */
 function UserForm({ user, s, onClose, onSaved }) {
   const [f, setF] = useState({ password: '', keys: user.keys.map((k) => k.line).join('\n'), folder: user.folder, readOnly: user.readOnly, expires: toInputDate(user.expires), quotaMB: user.quotaMB ? String(user.quotaMB) : '' });
@@ -38,8 +65,10 @@ function UserForm({ user, s, onClose, onSaved }) {
   const save = async () => {
     setBusy(true);
     try {
-      const expires = f.expires ? new Date(`${f.expires}T23:59:59`).getTime() : null;
-      onSaved(await put(`/file-share/accounts/${user.name}`, { folder: f.folder, readOnly: f.readOnly, keys: f.keys, expires, quotaMB: Number(f.quotaMB) || 0, ...(f.password ? { password: f.password } : {}) }));
+      // Ablauf nur mitschicken, wenn er geändert wurde – sonst ließe sich ein abgelaufener Zugang nicht mehr bearbeiten
+      // (Datum in der Vergangenheit) bzw. lebte heute still bis 23:59 wieder auf
+      const expires = f.expires !== toInputDate(user.expires) ? { expires: f.expires ? new Date(`${f.expires}T23:59:59`).getTime() : null } : {};
+      onSaved(await put(`/file-share/accounts/${user.name}`, { folder: f.folder, readOnly: f.readOnly, keys: f.keys, ...expires, quotaMB: Number(f.quotaMB) || 0, ...(f.password ? { password: f.password } : {}) }));
       toast.success(f.password ? 'Saved – pass the password on safely (not in the same message as the address).' : 'Saved');
       onClose();
     } catch (e) { toast.error(e); }
@@ -49,6 +78,7 @@ function UserForm({ user, s, onClose, onSaved }) {
     <Modal title={t('User {name}', { name: user.name })} onClose={onClose} footer={<><Btn onClick={onClose}>Cancel</Btn><Btn className="primary" disabled={!f.folder || busy} onClick={save}>Save</Btn></>}>
       <div className="stack">
         <Field label="Folder this user sees"><PathInput mode="folder" title="Shared folder" value={f.folder} onChange={(v) => setF({ ...f, folder: v })} /></Field>
+        <SensitiveWarning folder={f.folder} />
         <Field label="Rights"><Seg value={f.readOnly ? 'read' : 'write'} onChange={(v) => setF({ ...f, readOnly: v === 'read' })} options={[{ id: 'read', label: 'Read only' }, { id: 'write', label: 'Read and write' }]} /></Field>
         <Field label="New password (empty = keep)">
           <div className="row-tight"><input className="input mono grow" value={f.password} onChange={(e) => setF({ ...f, password: e.target.value })} aria-label="New password (empty = keep)" /><Btn className="sm" icon={KeyRound} onClick={() => setF({ ...f, password: genPass() })}>New</Btn><Btn className="sm ghost icon" icon={Copy} title="Copy" aria-label="Copy" disabled={!f.password} onClick={() => copy(f.password, 'Password')} /></div>
@@ -101,9 +131,10 @@ function QrDialog({ text, onClose }) {
 
 /* ---------------- Geführter Ablauf „Ordner freigeben“ ---------------- */
 const STEPS = ['Folder', 'For whom', 'Access', 'Limits', 'Done'];
+const NAME = /^[a-z][a-z0-9_.-]{1,31}$/; // wie im Server-Teil: am Anfang ein Buchstabe
 function ShareWizard({ s, folder: startFolder = '', onClose, onSaved }) {
   const [step, setStep] = useState(startFolder ? 1 : 0);
-  const [f, setF] = useState({ folder: startFolder, kind: 'account', name: '', password: genPass(), keys: '', readOnly: true, vault: false, label: '', expires: '', days: '7', quotaMB: '', teamRead: !!s.team.readOnly });
+  const [f, setF] = useState({ folder: startFolder, kind: 'account', name: '', password: genPass(), keys: '', readOnly: true, vault: false, label: '', expires: '', days: '7', quotaMB: '', teamRead: !!s.team.readOnly, maxDownloads: '', linkPass: '' });
   const [busy, setBusy] = useState(false);
   const [done, setDone] = useState(null); // { kind, address | url, password? }
   const addr = (s.addresses[0] || {}).address || '127.0.0.1';
@@ -116,8 +147,8 @@ function ShareWizard({ s, folder: startFolder = '', onClose, onSaved }) {
   const can = [
     !!f.folder,
     !!f.kind,
-    f.kind === 'account' ? /^[a-z0-9_.-]{2,32}$/.test(f.name) && (f.password.length >= 10 || f.keys.trim()) : true,
-    true,
+    f.kind === 'account' ? NAME.test(f.name) &&(f.password.length >= 10 || f.keys.trim()) : true,
+    f.kind === 'link' ? !f.linkPass || f.linkPass.length >= 6 : true,
   ][step];
   const finish = async () => {
     setBusy(true);
@@ -129,11 +160,11 @@ function ShareWizard({ s, folder: startFolder = '', onClose, onSaved }) {
         setDone({ kind: 'account', address: `sftp://${f.name}@${addr}:${s.port}`, password: f.password });
       } else if (f.kind === 'link') {
         const before = new Set(s.links.map((l) => l.token));
-        const d = await post('/file-share/links', { folder: f.folder, label: f.label, days: Number(f.days) });
+        const d = await post('/file-share/links', { folder: f.folder, label: f.label, days: Number(f.days), maxDownloads: Number(f.maxDownloads) || 0, ...(f.linkPass ? { password: f.linkPass } : {}) });
         onSaved(d);
         const l = d.links.find((x) => !before.has(x.token));
         const base = d.linkBases[0] || location.origin;
-        setDone({ kind: 'link', url: l ? `${base}/api/file-share/pub/${l.token}/` : '', local: !d.linkBases.length });
+        setDone({ kind: 'link', url: l ? `${base}/api/file-share/pub/${l.token}/` : '', local: !d.linkBases.length, password: f.linkPass || undefined });
       } else {
         onSaved(await put('/file-share/settings', { port: s.port, network: s.network, team: { enabled: true, readOnly: f.teamRead } }));
         setDone({ kind: 'team', address: `sftp://${addr}:${s.port}` });
@@ -152,7 +183,10 @@ function ShareWizard({ s, folder: startFolder = '', onClose, onSaved }) {
     <Modal title="Share a folder" onClose={onClose} footer={footer}>
       <ol className="fs-steps" aria-label={t('Steps')}>{STEPS.map((x, i) => <li key={x} className={i === step ? 'on' : i < step ? 'past' : ''} aria-current={i === step ? 'step' : undefined}>{t(x)}</li>)}</ol>
       {step === 0 && (
-        <Field label="Which folder?" hint="Others only see this folder and what is inside – nothing above it."><PathInput mode="folder" title="Shared folder" value={f.folder} onChange={set('folder')} autoFocus /></Field>
+        <div className="stack">
+          <Field label="Which folder?" hint="Others only see this folder and what is inside – nothing above it."><PathInput mode="folder" title="Shared folder" value={f.folder} onChange={set('folder')} autoFocus /></Field>
+          <SensitiveWarning folder={f.folder} />
+        </div>
       )}
       {step === 1 && (
         <div className="stack">
@@ -168,7 +202,7 @@ function ShareWizard({ s, folder: startFolder = '', onClose, onSaved }) {
       )}
       {step === 2 && f.kind === 'account' && (
         <div className="stack">
-          <Field label="User name"><input className="input mono" value={f.name} onChange={(e) => set('name')(e.target.value.toLowerCase())} placeholder="e.g. lena" aria-label="User name" autoFocus /></Field>
+          <Field label="User name" hint={f.name && !NAME.test(f.name) ? 'User name: 2–32 small letters, digits, _ . -, starting with a letter.' : undefined}><input className="input mono" value={f.name} onChange={(e) => set('name')(e.target.value.toLowerCase())} placeholder="e.g. lena" aria-label="User name" autoFocus /></Field>
           <Field label="Rights"><Seg value={f.readOnly ? 'read' : 'write'} onChange={(v) => set('readOnly')(v === 'read')} options={[{ id: 'read', label: 'Read only' }, { id: 'write', label: 'Read and write' }]} /></Field>
           <Field label="Password">
             <div className="row-tight"><input className="input mono grow" value={f.password} onChange={(e) => set('password')(e.target.value)} aria-label="Password" /><Btn className="sm" icon={KeyRound} onClick={() => set('password')(genPass())}>New</Btn><InfoTip pop title="Password">At least 10 characters. Hostwerk only keeps a hash – copy it now, it cannot be shown again later.</InfoTip></div>
@@ -192,7 +226,13 @@ function ShareWizard({ s, folder: startFolder = '', onClose, onSaved }) {
         </div>
       )}
       {step === 3 && f.kind === 'link' && (
-        <Field label="Valid for"><Seg value={f.days} onChange={set('days')} options={[{ id: '1', label: '1 day' }, { id: '7', label: '7 days' }, { id: '30', label: '30 days' }, { id: '0', label: 'No limit' }]} /></Field>
+        <div className="stack">
+          <Field label="Valid for"><Seg value={f.days} onChange={set('days')} options={[{ id: '1', label: '1 day' }, { id: '7', label: '7 days' }, { id: '30', label: '30 days' }, { id: '0', label: 'No limit' }]} /></Field>
+          <div className="grid grid-2">
+            <Field label="Max. downloads (optional)" hint="After that the link stops working."><input className="input" inputMode="numeric" value={f.maxDownloads} onChange={(e) => set('maxDownloads')(e.target.value.replace(/\D/g, '').slice(0, 5))} placeholder="e.g. 10" aria-label="Max. downloads (optional)" /></Field>
+            <Field label="Password (optional)" hint={f.linkPass && f.linkPass.length < 6 ? 'At least 6 characters.' : 'Asked for before the folder opens.'}><input className="input mono" type="text" autoComplete="off" value={f.linkPass} onChange={(e) => set('linkPass')(e.target.value)} aria-label="Password (optional)" /></Field>
+          </div>
+        </div>
       )}
       {step === 3 && f.kind === 'team' && (
         <div className="stack">
@@ -221,7 +261,7 @@ function Finished({ done, s }) {
       <div className="row-tight fs-row"><code className="grow fs-qr-text">{text}</code><Btn className="sm" icon={Copy} onClick={() => copy(text, done.kind === 'link' ? 'Link' : 'Address')}>Copy</Btn></div>
       {done.password && <div className="row-tight fs-row"><span className="small muted">{t('Password')}:</span><code className="grow">{done.password}</code><Btn className="sm ghost" icon={Copy} onClick={() => copy(done.password, 'Password')}>Copy</Btn></div>}
       <div className="fs-qr-wrap"><QrBox text={text} /></div>
-      {done.password && <Callout kind="info" dismissible={false}>Pass the password on separately – not in the same message as the address.</Callout>}
+      {done.password && <Callout kind="info" dismissible={false}>{done.kind === 'link' ? t('Pass the password on separately – not in the same message as the link.') : t('Pass the password on separately – not in the same message as the address.')}</Callout>}
       {done.local && <Callout kind="warn" dismissible={false}>Remote access is off – the links only work on this PC. Turn it on under Go live → Access → Remote access.</Callout>}
       {!s.running && done.kind !== 'link' && <Callout kind="info" dismissible={false}>The SFTP server is still off – start it on the page so others can connect.</Callout>}
     </div>
@@ -258,6 +298,7 @@ function FileSharePage({ ext, query }) {
   const [qr, setQr] = useState(null);
   const [wizard, setWizard] = useState(null); // { folder }
   const [guide, setGuide] = useState(false);
+  const [extend, setExtend] = useState(null); // Link
   const s = st.data;
   useEffect(() => on('file-share', () => st.reload({ silent: true })), [st.reload]); // eslint-disable-line react-hooks/exhaustive-deps
   // Aus dem Datei-Browser: ?action=share&target=<root>|<pfad> → Ablauf mit vorgewähltem Ordner
@@ -271,8 +312,9 @@ function FileSharePage({ ext, query }) {
   }, [query]);
   if (!s) return st.error ? <div className="page"><Empty icon={AlertTriangle} title="The file share could not be loaded" text={st.error} action={<Btn icon={RotateCcw} onClick={() => st.reload()}>Try again</Btn>} /></div> : <Loading />;
   const act = async (p) => { try { st.setData(await post(`/file-share/${p}`)); } catch (e) { toast.error(e); } };
-  const removeUser = async (u) => { if (await confirmDialog({ title: t('Remove the user “{name}”?', { name: u.name }), text: 'The folder and its files stay.', confirm: 'Remove', danger: true })) { st.setData(await del(`/file-share/accounts/${u.name}`)); window.dispatchEvent(new Event('hw:files-marks')); } };
-  const removeLink = async (l) => { if (await confirmDialog({ title: 'Delete this link?', text: 'Whoever has it can no longer open it. The files stay.', confirm: 'Delete', danger: true })) { st.setData(await del(`/file-share/links/${l.token}`)); window.dispatchEvent(new Event('hw:files-marks')); } };
+  const removeUser = async (u) => { if (await confirmDialog({ title: t('Remove the user “{name}”?', { name: u.name }), text: 'The folder and its files stay.', confirm: 'Remove', danger: true })) { try { st.setData(await del(`/file-share/accounts/${u.name}`)); window.dispatchEvent(new Event('hw:files-marks')); } catch (e) { toast.error(e); } } };
+  const removeLink = async (l) => { if (await confirmDialog({ title: 'Delete this link?', text: 'Whoever has it can no longer open it. The files stay.', confirm: 'Delete', danger: true })) { try { st.setData(await del(`/file-share/links/${l.token}`)); window.dispatchEvent(new Event('hw:files-marks')); } catch (e) { toast.error(e); } } };
+  const dropSession = async (c) => { if (await confirmDialog({ title: t('Disconnect “{name}”?', { name: c.user }), text: 'The SFTP program can sign in again right away – to lock someone out, remove or change the access.', confirm: 'Disconnect', danger: true })) { try { st.setData(await post(`/file-share/sessions/${c.id}/drop`)); } catch (e) { toast.error(e); st.reload({ silent: true }); } } };
   const forward = async () => { try { const r = await post('/file-share/forward'); toast.success(t('Port {port} is forwarded to this PC', { port: r.port })); } catch (e) { toast.error(e); } };
   const addr = (s.addresses[0] || {}).address || '127.0.0.1';
   const linkBase = s.linkBases[0] || location.origin;
@@ -280,14 +322,16 @@ function FileSharePage({ ext, query }) {
   const canStart = s.accounts.length || s.team.enabled;
   const rows = [
     ...s.accounts.map((u) => ({ key: `u:${u.name}`, kind: 'account', who: u.name, folder: u.folder, readOnly: u.readOnly, expires: u.expires, expired: u.expired, last: u.last, missing: !u.exists, u, link: `sftp://${u.name}@${addr}:${s.port}` })),
-    ...s.links.map((l) => ({ key: `l:${l.token}`, kind: 'link', who: l.label || folderName(l.folder), folder: l.folder, readOnly: true, expires: l.expires, expired: l.expired, last: l.last, missing: !l.exists, l, link: linkUrl(l) })),
+    ...s.links.map((l) => ({ key: `l:${l.token}`, kind: 'link', who: l.label || folderName(l.folder), folder: l.folder, readOnly: true, expires: l.expires, expired: l.expired || l.exhausted, last: l.last, missing: !l.exists, l, link: linkUrl(l) })),
   ];
+  // contextMenu übersetzt nicht selbst – Beschriftungen wie bei den Knöpfen der Zeile mit t()
   const menu = (e, r) => contextMenu(e, [
-    { label: r.kind === 'link' ? 'Copy link' : 'Copy address', icon: Copy, disabled: r.expired, onClick: () => copy(r.link, r.kind === 'link' ? 'Link' : 'Address') },
-    { label: 'Show as QR code', icon: QrCode, disabled: r.expired, onClick: () => setQr(r.link) },
-    r.kind === 'account' && { label: 'Edit', icon: Pencil, onClick: () => setUser(r.u) },
+    { label: t(r.kind === 'link' ? 'Copy link' : 'Copy address'), icon: Copy, disabled: r.expired, onClick: () => copy(r.link, r.kind === 'link' ? 'Link' : 'Address') },
+    { label: t('Show as QR code'), icon: QrCode, disabled: r.expired, onClick: () => setQr(r.link) },
+    r.kind === 'account' && { label: t('Edit'), icon: Pencil, onClick: () => setUser(r.u) },
+    r.kind === 'link' && r.expired && { label: t('Extend link …'), icon: CalendarClock, onClick: () => setExtend(r.l) },
     '-',
-    { label: r.kind === 'link' ? 'Delete' : 'Remove', icon: Trash2, danger: true, onClick: () => (r.kind === 'link' ? removeLink(r.l) : removeUser(r.u)) },
+    { label: t(r.kind === 'link' ? 'Delete' : 'Remove'), icon: Trash2, danger: true, onClick: () => (r.kind === 'link' ? removeLink(r.l) : removeUser(r.u)) },
   ]);
   return (
     <div className="page fade-in">
@@ -327,18 +371,33 @@ function FileSharePage({ ext, query }) {
               {r.kind === 'link' ? <Link2 size={16} className="muted" aria-hidden="true" /> : <KeyRound size={16} className="muted" aria-hidden="true" />}
               <div className="grow fs-min0">
                 <div className="row-tight fs-row"><b className={r.kind === 'account' ? 'mono' : ''}>{r.who}</b><span className="small muted">{r.kind === 'link' ? t('download link') : r.readOnly ? t('reads') : t('reads and writes')}</span>
-                  {r.missing && <span className="badge err">folder missing</span>}</div>
+                  {r.kind === 'link' && r.l.hasPassword && <span className="badge">with password</span>}
+                  {r.missing && <span className="badge err">folder missing</span>}
+                  {r.kind === 'link' && r.l.exhausted && <span className="badge warn">download limit reached</span>}</div>
                 <div className="small muted ellipsis" title={r.folder}>{r.folder}</div>
-                <div className="tiny muted">{r.expired ? t('expired') : r.expires ? t('until {date}', { date: day(r.expires) }) : t('no end date')} · {r.last ? t('last used {when}', { when: when(r.last) }) : t('not used yet')}{r.kind === 'account' && r.u.quotaMB > 0 ? ` · ${t('max. {n} MB', { n: r.u.quotaMB.toLocaleString(locale()) })}` : ''}</div>
+                <div className="tiny muted">{(r.kind === 'link' ? r.l.expired : r.expired) ? t('expired') : r.expires ? t('until {date}', { date: day(r.expires) }) : t('no end date')} · {r.last ? t('last used {when}', { when: when(r.last) }) : t('not used yet')}{r.kind === 'account' && r.u.quotaMB > 0 ? ` · ${t('max. {n} MB', { n: r.u.quotaMB.toLocaleString(locale()) })}` : ''}{r.kind === 'link' && r.l.maxDownloads > 0 ? ` · ${t('{n} of {max} downloads', { n: r.l.downloads, max: r.l.maxDownloads })}` : ''}</div>
               </div>
               <Btn className="xs ghost icon" icon={Copy} title={r.kind === 'link' ? 'Copy link' : 'Copy address'} aria-label={r.kind === 'link' ? 'Copy link' : 'Copy address'} disabled={r.expired} onClick={() => copy(r.link, r.kind === 'link' ? 'Link' : 'Address')} />
               <Btn className="xs ghost icon" icon={QrCode} title="Show as QR code" aria-label="Show as QR code" disabled={r.expired} onClick={() => setQr(r.link)} />
               {r.kind === 'account' && <Btn className="xs ghost icon" icon={Pencil} title="Edit" aria-label="Edit" onClick={() => setUser(r.u)} />}
-              <Btn className="xs ghost icon" icon={Trash2} title="Remove" aria-label="Remove" onClick={() => (r.kind === 'link' ? removeLink(r.l) : removeUser(r.u))} />
+              {r.kind === 'link' && r.expired && <Btn className="xs ghost icon" icon={CalendarClock} title="Extend link …" aria-label="Extend link …" onClick={() => setExtend(r.l)} />}
+              <Btn className="xs ghost icon" icon={Trash2} title={r.kind === 'link' ? 'Delete' : 'Remove'} aria-label={r.kind === 'link' ? 'Delete' : 'Remove'} onClick={() => (r.kind === 'link' ? removeLink(r.l) : removeUser(r.u))} />
             </li>
           ))}</ul>
         )}
       </div>
+      {s.running && (
+        <div className="card mb">
+          <div className="card-head"><Plug size={16} /><h3>Connected now</h3>{s.connected.length > 0 && <span className="badge">{s.connected.length}</span>}</div>
+          {!s.connected.length ? <TileEmpty icon={Plug} text="Nobody is connected over SFTP right now." /> : (
+            <ul className="fs-events fs-conn">{s.connected.map((c) => (
+              <li key={c.id}><Plug size={13} aria-hidden="true" /><span className="small"><b className="mono">{c.user}</b>{c.team ? <span className="muted"> · {t('team member')}</span> : null}</span>
+                <span className="tiny muted">{t('{ip} · since {when}', { ip: c.ip, when: when(c.since) })}</span>
+                <Btn className="xs ghost" icon={Unplug} onClick={() => dropSession(c)}>Disconnect</Btn></li>
+            ))}</ul>
+          )}
+        </div>
+      )}
       <div className="card">
           <div className="card-head"><LogIn size={16} /><h3>Activity</h3>{s.events.length > 0 && <span className="badge">{s.events.length}</span>}</div>
           {!s.events.length ? <TileEmpty icon={LogIn} text="Sign-ins, uploads and wrong passwords appear here." /> : (
@@ -350,6 +409,7 @@ function FileSharePage({ ext, query }) {
       {user && <UserForm user={user} s={s} onClose={() => setUser(null)} onSaved={(d) => st.setData(d)} />}
       {cfg && <Settings s={s} onClose={() => setCfg(false)} onSaved={(d) => st.setData(d)} />}
       {qr && <QrDialog text={qr} onClose={() => setQr(null)} />}
+      {extend && <ExtendLink link={extend} onClose={() => setExtend(null)} onSaved={(d) => st.setData(d)} />}
       {wizard && <ShareWizard s={s} folder={wizard.folder} onClose={() => { setWizard(null); st.reload({ silent: true }); }} onSaved={(d) => st.setData(d)} />}
     </div>
   );
@@ -392,7 +452,7 @@ export default {
       marks: async ({ root, path }) => {
         const r = await get(`/file-share/marks?root=${encodeURIComponent(root)}&path=${encodeURIComponent(path)}`);
         selfCache.set(`${root}|${path}`, r.self || []);
-        return Object.fromEntries(Object.entries(r.children || {}).map(([name, m]) => [name, { title: t('Shared with {who}', { who: [...m.users, ...(m.links ? [t('{n} download links', { n: m.links })] : [])].join(', ') }) }]));
+        return Object.fromEntries(Object.entries(r.children || {}).map(([name, m]) => [name, { title: t('Shared with {who}', { who: [...m.users, ...(m.links ? [pl(m.links, '{n} download link', '{n} download links')] : [])].join(', ') }) }]));
       },
     }],
   },

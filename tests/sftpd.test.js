@@ -72,6 +72,40 @@ test('SFTP: sign in, list, upload, download; read-only user may not write; wrong
   } finally { await share.stop(); }
 });
 
+test('drop: open connections of a removed or changed user end, others stay', { skip: !ssh2 || !Client ? 'ssh2 not available' : false }, async () => {
+  const folder = tmp(); fs.writeFileSync(path.join(folder, 'hello.txt'), 'hi');
+  const accounts = [{ name: 'lena', hash: S.hashPass('lena-pass-123'), folder }, { name: 'tom', hash: S.hashPass('tom-pass-1234'), folder }];
+  const share = new S.Share({ ssh2, hostKey: ssh2.utils.generateKeyPairSync('ed25519').private, accounts: () => accounts });
+  const port = await new Promise((r) => { const s = net.createServer(); s.listen(0, '127.0.0.1', () => { const p = s.address().port; s.close(() => r(p)); }); });
+  await share.start(port, '127.0.0.1');
+  try {
+    const a = new Client(); const b = new Client();
+    await a.connect({ host: '127.0.0.1', port, username: 'lena', password: 'lena-pass-123' });
+    await b.connect({ host: '127.0.0.1', port, username: 'tom', password: 'tom-pass-1234' });
+    assert.strictEqual(share.drop({ name: 'lena' }), 1);
+    await new Promise((r) => setTimeout(r, 200));
+    await assert.rejects(a.list('/'), 'lena is gone');
+    assert.deepStrictEqual((await b.list('/')).map((x) => x.name), ['hello.txt'], 'tom stays connected');
+    await b.end();
+  } finally { await share.stop(); }
+});
+
+test('expiry: an open connection ends when the access expires', { skip: !ssh2 || !Client ? 'ssh2 not available' : false }, async () => {
+  const folder = tmp(); fs.writeFileSync(path.join(folder, 'hello.txt'), 'hi');
+  const accounts = [{ name: 'kurz', hash: S.hashPass('kurz-pass-123'), folder, expires: Date.now() + 1500 }];
+  const share = new S.Share({ ssh2, hostKey: ssh2.utils.generateKeyPairSync('ed25519').private, accounts: () => accounts });
+  const port = await new Promise((r) => { const s = net.createServer(); s.listen(0, '127.0.0.1', () => { const p = s.address().port; s.close(() => r(p)); }); });
+  await share.start(port, '127.0.0.1');
+  try {
+    const c = new Client();
+    await c.connect({ host: '127.0.0.1', port, username: 'kurz', password: 'kurz-pass-123' });
+    assert.deepStrictEqual((await c.list('/')).map((x) => x.name), ['hello.txt']);
+    await new Promise((r) => setTimeout(r, 1800));
+    await assert.rejects(c.list('/'), 'expired access is cut off');
+    assert.strictEqual(share.sessions.size, 0);
+  } finally { await share.stop(); }
+});
+
 test('messages have German', () => {
   for (const s of ['The password needs at least 10 characters.', 'A whole drive cannot be shared – pick a folder.', 'This user name exists already.']) assert.ok(de[s], s);
 });

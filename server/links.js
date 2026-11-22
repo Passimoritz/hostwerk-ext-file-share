@@ -13,18 +13,64 @@ const TOKEN = /^[A-Za-z0-9_-]{32}$/;
 const newToken = () => crypto.randomBytes(24).toString('base64url');
 const esc = (s) => String(s).replace(/[&<>"']/g, (c) => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' }[c]));
 
-/** Valid link for a token, or null (unknown, expired, folder gone). */
+/** Download limit used up? (maxDownloads 0/empty = no limit) */
+const exhausted = (l) => !!(l && l.maxDownloads > 0 && (l.downloads || 0) >= l.maxDownloads);
+
+/** Valid link for a token, or null (unknown, expired, download limit reached, folder gone). */
 function find(links, token, now = Date.now()) {
   if (!TOKEN.test(String(token || ''))) return null;
   const l = links.find((x) => x.token === token);
-  if (!l || (l.expires && l.expires <= now) || !fs.existsSync(l.folder)) return null;
+  if (!l || (l.expires && l.expires <= now) || exhausted(l) || !fs.existsSync(l.folder)) return null;
   return l;
+}
+
+/**
+ * Counts this request as a download? Only the first piece: no Range header or a range from byte 0 – browsers and download
+ * managers fetch big files in many pieces, which must neither use up the limit nor rewrite the log each time.
+ */
+function firstPiece(rangeHeader) {
+  const r = String(rangeHeader || '').trim();
+  if (!r) return true;
+  const m = /^bytes=\s*(\d*)\s*-/.exec(r);
+  return !!m && (m[1] === '' ? false : Number(m[1]) === 0);
+}
+
+/* ---- Link with password: the browser gets a cookie bound to this link and its password hash (HMAC with a secret) ---- */
+const cookieName = (token) => `hwfs_${token.slice(0, 12)}`;
+const cookieValue = (secret, link) => crypto.createHmac('sha256', secret).update(`${link.token}\n${link.passHash || ''}`).digest('base64url');
+/** Does the request carry the right cookie for this password-protected link? */
+function unlocked(secret, link, cookieHeader) {
+  if (!link.passHash) return true;
+  const want = Buffer.from(cookieValue(secret, link));
+  for (const part of String(cookieHeader || '').split(';')) {
+    const i = part.indexOf('='); if (i < 0) continue;
+    if (part.slice(0, i).trim() !== cookieName(link.token)) continue;
+    const got = Buffer.from(part.slice(i + 1).trim());
+    if (got.length === want.length && crypto.timingSafeEqual(got, want)) return true;
+  }
+  return false;
+}
+/** Set-Cookie line after the right password (only for the path of this link, not readable by scripts). */
+function unlockCookie(secret, link, base, secure) {
+  return `${cookieName(link.token)}=${cookieValue(secret, link)}; Path=${base}/; HttpOnly; SameSite=Lax; Max-Age=43200${secure ? '; Secure' : ''}`;
+}
+/** Small password page (no JavaScript; posts back to the same address). */
+function passwordPage(link, action, lang = 'en', wrong = false) {
+  const de = lang === 'de';
+  const title = esc(link.label || path.basename(link.folder));
+  return `<!doctype html><html lang="${de ? 'de' : 'en'}"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width, initial-scale=1"><meta name="robots" content="noindex"><title>${title}</title>
+<style>:root{color-scheme:light dark;font-family:system-ui,sans-serif}body{max-width:420px;margin:0 auto;padding:48px 16px;line-height:1.5}form{display:flex;flex-direction:column;gap:10px}input,button{font:inherit;padding:8px 10px;border-radius:6px;border:1px solid color-mix(in srgb,currentColor 30%,transparent)}button{cursor:pointer}p.err{color:#d33}small{opacity:.7}</style></head>
+<body><h1>${title}</h1><form method="post" action="${esc(action)}"><label for="p">${de ? 'Dieser Link ist mit einem Passwort geschützt.' : 'This link is protected with a password.'}</label>
+<input id="p" name="password" type="password" autocomplete="current-password" required autofocus>${wrong ? `<p class="err" role="alert">${de ? 'Das Passwort stimmt nicht.' : 'Wrong password.'}</p>` : ''}
+<button type="submit">${de ? 'Öffnen' : 'Open'}</button></form><small>${de ? 'Freigegeben mit Hostwerk.' : 'Shared with Hostwerk.'}</small></body></html>`;
 }
 
 /** Path below the link ("/sub/file.zip", URL-decoded) → real path inside the folder, or null. */
 function resolve(link, sub) {
   let p; try { p = decodeURIComponent(String(sub || '/')); } catch { return null; }
   if (p.includes('\0')) return null;
+  // Versteckte Dateien/Ordner (.env, .git …) zeigt die Liste nicht – dann dürfen sie auch nicht per erratener Adresse ladbar sein
+  if (path.posix.normalize(`/${p.replace(/\\/g, '/')}`).split('/').some((s) => s.startsWith('.'))) return null;
   return safe(link.folder, p);
 }
 
@@ -51,4 +97,4 @@ function listing(link, real, base, lang = 'en') {
 <small>${de ? 'Nur zum Herunterladen – freigegeben mit Hostwerk.' : 'Download only – shared with Hostwerk.'}${link.expires ? ` ${de ? 'Gültig bis' : 'Valid until'} ${esc(new Date(link.expires).toLocaleString(de ? 'de-DE' : 'en-US'))}.` : ''}</small></body></html>`;
 }
 
-module.exports = { find, resolve, listing, newToken, TOKEN };
+module.exports = { find, resolve, listing, newToken, TOKEN, exhausted, firstPiece, unlocked, unlockCookie, passwordPage, cookieName };

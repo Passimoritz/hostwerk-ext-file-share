@@ -50,6 +50,7 @@ test('links: token format, expiry, jail and listing', () => {
   assert.strictEqual(L.resolve(list[0], '/a%26b.txt'), path.join(f, 'a&b.txt'));
   const up = L.resolve(list[0], '/../../sub'); assert.strictEqual(up, path.join(f, 'sub'), '.. stays inside');
   assert.strictEqual(L.resolve(list[0], '/%E0%A4%A'), null);
+  for (const p of ['/.env', '/sub/.git/config', '/%2Egit/config', '/sub/..%2F.env']) assert.strictEqual(L.resolve(list[0], p), null, `hidden ${p} stays hidden`);
   const html = L.listing(list[0], f, '/api/file-share/pub/' + tok, 'de');
   assert.ok(html.includes('a&amp;b.txt') && !html.includes('>a&b.txt'), 'names are escaped');
   assert.ok(html.includes('lang="de"') && html.includes('sub/'));
@@ -83,8 +84,9 @@ test('SFTP: SSH key, team member mounts, expired account, storage limit', { skip
     const q = new Client();
     await q.connect({ host: '127.0.0.1', port, username: 'small', password: 'small-pass-123' });
     await q.put(Buffer.alloc(600 * 1024), '/a.bin');
-    await q.put(Buffer.alloc(600 * 1024), '/b.bin').catch(() => {}); // manche Programme melden den Fehler nicht – entscheidend ist, was ankommt
-    assert.ok(fs.statSync(path.join(folder, 'a.bin')).size + fs.statSync(path.join(folder, 'b.bin')).size <= 1048576, 'stays within 1 MB');
+    // Über der Grenze: das Schließen meldet den Fehler (auch bei put per Stream), die halbe Datei bleibt nicht liegen
+    await assert.rejects(q.put(require('node:stream').Readable.from([Buffer.alloc(300 * 1024), Buffer.alloc(300 * 1024)]), '/b.bin'), 'client sees the error');
+    assert.ok(!fs.existsSync(path.join(folder, 'b.bin')), 'incomplete file removed');
     await q.end();
   } finally { await share.stop(); }
 });
@@ -116,4 +118,52 @@ test('router forwarding: with an owner through router.forwards, older router ext
   assert.deepStrictEqual(old.cfg.extra, [{ port: 2300, protocol: 'TCP', label: 'SFTP (file share)' }]);
   idx.deactivate();
   fs.rmSync(data, { recursive: true, force: true });
+});
+
+test('links: download limit, only the first piece of a download counts', () => {
+  const f = tmp();
+  const l = { token: L.newToken(), folder: f, maxDownloads: 2, downloads: 1 };
+  assert.ok(L.find([l], l.token)); l.downloads = 2; assert.strictEqual(L.find([l], l.token), null, 'used up');
+  assert.ok(L.exhausted(l)); assert.ok(!L.exhausted({ maxDownloads: 0, downloads: 99 }), '0 = no limit');
+  for (const r of [undefined, '', 'bytes=0-', 'bytes=0-1023']) assert.ok(L.firstPiece(r), `counts: ${r}`);
+  for (const r of ['bytes=1024-', 'bytes=-500', 'items=0-1', 'bytes=5-9']) assert.ok(!L.firstPiece(r), `does not count: ${r}`);
+});
+
+test('links with password: cookie only for this link and this password', () => {
+  const f = tmp();
+  const l = { token: L.newToken(), folder: f, label: 'Fotos <x>', passHash: S.hashPass('geheim1') };
+  const base = `/api/file-share/pub/${l.token}`;
+  assert.ok(!L.unlocked('s3cret', l, ''), 'no cookie');
+  const set = L.unlockCookie('s3cret', l, base, true);
+  assert.match(set, /HttpOnly/); assert.match(set, /SameSite=Lax/); assert.match(set, /; Secure/); assert.ok(set.includes(`Path=${base}/`));
+  const cookie = set.split(';')[0];
+  assert.ok(L.unlocked('s3cret', l, `other=1; ${cookie}`));
+  assert.ok(!L.unlocked('other-secret', l, cookie), 'other secret');
+  assert.ok(!L.unlocked('s3cret', { ...l, passHash: S.hashPass('neu-pass') }, cookie), 'new password → cookie no longer valid');
+  assert.ok(L.unlocked('s3cret', { token: l.token, folder: f }, ''), 'without password always open');
+  const html = L.passwordPage(l, base + '/', 'de', true);
+  assert.ok(html.includes('Fotos &lt;x&gt;') && html.includes('method="post"') && html.includes('role="alert"'));
+});
+
+test('SFTP: who is connected, end one connection; unknown names cost a scrypt check too', { skip: !ssh2 || !Client ? 'ssh2 not available' : false }, async () => {
+  const folder = tmp();
+  const accounts = [{ name: 'lena', hash: S.hashPass('lena-pass-123'), folder }];
+  let changes = 0;
+  const share = new S.Share({ ssh2, hostKey: ssh2.utils.generateKeyPairSync('ed25519').private, accounts: () => accounts, onSessions: () => { changes++; }, guard: new S.Guard({ max: 50, ms: 60000 }) });
+  const port = await freePort();
+  await share.start(port, '127.0.0.1');
+  try {
+    const a = new Client();
+    await a.connect({ host: '127.0.0.1', port, username: 'lena', password: 'lena-pass-123' });
+    const list = share.connected();
+    assert.strictEqual(list.length, 1); assert.strictEqual(list[0].user, 'lena'); assert.strictEqual(list[0].ip, '127.0.0.1'); assert.ok(list[0].since > 0);
+    assert.ok(changes >= 1);
+    assert.ok(share.dropId(list[0].id)); assert.ok(!share.dropId(list[0].id), 'already gone');
+    assert.deepStrictEqual(share.connected(), []);
+    // unbekannter Name: auth läuft trotzdem durch scrypt (nicht sofort false)
+    let ran = false; const orig = require('node:crypto').scrypt;
+    require('node:crypto').scrypt = (...x) => { ran = true; return orig(...x); };
+    try { assert.strictEqual(await share.auth({ method: 'password', username: 'nobody', password: 'x' }, '1.2.3.4'), false); } finally { require('node:crypto').scrypt = orig; }
+    assert.ok(ran, 'scrypt ran for an unknown user');
+  } finally { await share.stop(); }
 });

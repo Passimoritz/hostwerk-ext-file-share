@@ -43,4 +43,14 @@ function marksIn(dir, accounts, links, win) {
   return out;
 }
 
-module.exports = { norm, lastUse, sharesOf, marksIn };
+/**
+ * Hostwerk-Datenordner betroffen? true, wenn folder einer der Ordner (data/, config/) ist, darin liegt – oder ihn enthält
+ * (z. B. der ganze Benutzerordner): dort liegen host_key, accounts.json und Zugangsdaten.
+ */
+function sensitive(folder, dirs, win) {
+  if (!folder) return false;
+  const f = norm(folder, win);
+  return (dirs || []).filter(Boolean).some((d) => { const x = norm(d, win); return f === x || f.startsWith(x + path.sep) || x.startsWith(f + path.sep); });
+}
+
+module.exports = { norm, lastUse, sharesOf, marksIn, sensitive };

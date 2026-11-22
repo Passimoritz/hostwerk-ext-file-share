@@ -30,6 +30,10 @@ function checkPassAsync(pass, stored) {
   }));
 }
 
+// Vergleichs-Hash für unbekannte Nutzer: auch dann läuft scrypt – sonst verrät die Antwortzeit, welche Namen es gibt
+let dummyHash = null;
+const dummy = () => { if (!dummyHash) dummyHash = hashPass(crypto.randomBytes(16).toString('hex')); return dummyHash; };
+
 /** Client path ("/sub/../x") → real path inside root, or null if it would leave the root. */
 function jail(root, p) {
   const clean = path.posix.normalize(`/${String(p || '/').replace(/\\/g, '/')}`);
@@ -114,9 +118,18 @@ class Share {
    * ssh2 = require('ssh2'), hostKey = private key (PEM/OpenSSH), accounts() → [{ name, hash, keys, folder, readOnly, expires, quotaMB }],
    * members(name, password) → Promise<account with mounts | null> (team members, optional), onEvent({ type, user, ip, path })
    */
-  constructor({ ssh2, hostKey, accounts, members = null, onEvent = () => {}, guard = new Guard() }) {
-    Object.assign(this, { ssh2, hostKey, accounts, members, onEvent, guard });
-    this.server = null; this.sessions = new Set(); this.busy = new Set(); this.sizes = new Map();
+  constructor({ ssh2, hostKey, accounts, members = null, onEvent = () => {}, onSessions = () => {}, guard = new Guard() }) {
+    Object.assign(this, { ssh2, hostKey, accounts, members, onEvent, onSessions, guard });
+    this.server = null; this.sessions = new Set(); this.busy = new Set(); this.sizes = new Map(); this.nextSid = 0;
+  }
+
+  /** Who is connected right now: [{ id, user, ip, since, team }]. */
+  connected() { return [...this.sessions].map((c) => ({ id: c.sid, user: c.user, ip: c.ip, since: c.since, team: !!c.team })); }
+
+  /** End one connection by its id (from connected()). true if there was one. */
+  dropId(id) {
+    for (const c of this.sessions) if (c.sid === Number(id)) { try { c.end(); } catch { /* egal */ } this.sessions.delete(c); this.onSessions(); return true; }
+    return false;
   }
 
   /** Used bytes of an account's folder, cached for 30 seconds (quota). */
@@ -138,8 +151,10 @@ class Share {
       return k.verify(ctx.blob, ctx.signature, ctx.hashAlgo) === true ? a : null;
     }
     if (ctx.method !== 'password') return null;
-    if (a) return usable(a) && (await checkPassAsync(ctx.password, a.hash)) ? a : false;
+    // Gleich lange Prüfung für unbekannte, abgelaufene und passwortlose Zugänge (Zeitmessung verrät keine Namen)
+    if (a) { const ok = await checkPassAsync(ctx.password, usable(a) && a.hash ? a.hash : dummy()); return ok && usable(a) && a.hash ? a : false; }
     if (this.members) { const m = await this.members(ctx.username, ctx.password); if (m && usable(m)) return m; }
+    await checkPassAsync(ctx.password, dummy());
     return false;
   }
 
@@ -165,7 +180,13 @@ class Share {
       });
       client.on('error', () => {});
       client.on('ready', () => {
-        this.sessions.add(client); client.on('close', () => this.sessions.delete(client));
+        client.user = acc.name; client.team = !!acc.mounts; client.ip = ip; client.since = Date.now(); client.sid = ++this.nextSid;
+        // Ablauf gilt auch für offene Verbindungen: zum Ablaufzeitpunkt trennen (setTimeout reicht ~24 Tage – darüber prüft where())
+        const left = acc.expires ? acc.expires - Date.now() : 0;
+        const timer = left > 0 && left < 2 ** 31 - 1 ? setTimeout(() => { try { client.end(); } catch { /* egal */ } }, left) : null;
+        if (timer && timer.unref) timer.unref();
+        this.sessions.add(client); this.onSessions();
+        client.on('close', () => { if (timer) clearTimeout(timer); if (this.sessions.delete(client)) this.onSessions(); });
         client.on('session', (accept) => {
           const session = accept();
           session.on('sftp', (acceptSftp) => {
@@ -178,7 +199,7 @@ class Share {
             const deny = (id) => sftp.status(id, STATUS_CODE.PERMISSION_DENIED);
             const fail = (id, e) => sftp.status(id, e && e.code === 'ENOENT' ? STATUS_CODE.NO_SUCH_FILE : STATUS_CODE.FAILURE);
             /** Client path → { real, root, prefix } or { top } or null (outside). */
-            const where = (p) => { const l = locate(acc, p); if (!l) return null; if (l.top) return l; const real = safe(l.root, l.sub); return real ? { real, root: l.root, prefix: l.prefix } : null; };
+            const where = (p) => { if (acc.expires && acc.expires <= Date.now()) { try { client.end(); } catch { /* egal */ } return null; } const l = locate(acc, p); if (!l) return null; if (l.top) return l; const real = safe(l.root, l.sub); return real ? { real, root: l.root, prefix: l.prefix } : null; };
             const mountsList = () => (acc.mounts || []).filter((m) => fs.existsSync(m.folder));
             sftp.on('REALPATH', (id, p) => { const w = where(p); if (!w) return deny(id); const v = w.top ? '/' : virt(w.root, w.real, w.prefix); sftp.name(id, [{ filename: v, longname: v, attrs: {} }]); });
             const stat = (id, p) => {
@@ -207,18 +228,31 @@ class Share {
               const write = (flags & (OPEN_MODE.WRITE | OPEN_MODE.APPEND | OPEN_MODE.CREAT | OPEN_MODE.TRUNC)) !== 0;
               if (write && ro) return deny(id);
               let used = null;
-              if (write && quota) { used = await this.used(acc); if (used.n >= quota) { this.onEvent({ type: 'quota', user: acc.name, ip, path: virt(w.root, w.real, w.prefix) }); return sftp.status(id, STATUS_CODE.FAILURE); } }
-              fs.open(w.real, utils.sftp.flagsToString(flags) || 'r', (e, fd) => { if (e) return fail(id, e); if (write) this.onEvent({ type: 'upload', user: acc.name, ip, path: virt(w.root, w.real, w.prefix) }); sftp.handle(id, newHandle({ fd, used })); });
+              if (write && quota) { used = await this.used(acc); if (used.n >= quota) { this.onEvent({ type: 'quota', user: acc.name, ip, path: virt(w.root, w.real, w.prefix) }); return sftp.status(id, STATUS_CODE.FAILURE, 'Storage limit reached'); } }
+              fs.open(w.real, utils.sftp.flagsToString(flags) || 'r', (e, fd) => { if (e) return fail(id, e); if (write) this.onEvent({ type: 'upload', user: acc.name, ip, path: virt(w.root, w.real, w.prefix) }); sftp.handle(id, newHandle({ fd, used, real: w.real, path: virt(w.root, w.real, w.prefix) })); });
             });
             sftp.on('READ', (id, h, offset, len) => { const x = getH(h); if (!x || x.fd == null) return fail(id); const buf = Buffer.alloc(Math.min(len, 256 * 1024)); fs.read(x.fd, buf, 0, buf.length, offset, (e, n) => { if (e) return fail(id, e); if (!n) return sftp.status(id, STATUS_CODE.EOF); sftp.data(id, buf.subarray(0, n)); }); });
             sftp.on('WRITE', (id, h, offset, data) => {
               if (ro) return deny(id);
               const x = getH(h); if (!x || x.fd == null) return fail(id);
               // Speichergrenze: jedes geschriebene Byte zählt (vorsichtig – Überschreiben zählt auch), bis neu gezählt wird
-              if (quota && x.used) { if (x.used.n + data.length > quota) return sftp.status(id, STATUS_CODE.FAILURE); x.used.n += data.length; }
+              if (quota && x.used) {
+                if (x.full || x.used.n + data.length > quota) { if (!x.full) this.onEvent({ type: 'quota', user: acc.name, ip, path: x.path }); x.full = true; return sftp.status(id, STATUS_CODE.FAILURE, 'Storage limit reached'); }
+                x.used.n += data.length;
+              }
               fs.write(x.fd, data, 0, data.length, offset, (e) => sftp.status(id, e ? STATUS_CODE.FAILURE : STATUS_CODE.OK));
             });
-            sftp.on('CLOSE', (id, h) => { const k = Buffer.from(h).toString('hex'); const x = handles.get(k); handles.delete(k); if (x && x.fd != null) fs.close(x.fd, () => sftp.status(id, STATUS_CODE.OK)); else sftp.status(id, STATUS_CODE.OK); });
+            // Speichergrenze beim Schreiben überschritten: die halbe Datei weg und das Schließen als Fehler melden – Programme,
+            // die Schreibfehler im Strom übergehen (put mit Stream), sähen sonst „fertig“, obwohl abgeschnitten wurde
+            sftp.on('CLOSE', (id, h) => {
+              const k = Buffer.from(h).toString('hex'); const x = handles.get(k); handles.delete(k);
+              if (!x || x.fd == null) return sftp.status(id, STATUS_CODE.OK);
+              fs.close(x.fd, () => {
+                if (!x.full) return sftp.status(id, STATUS_CODE.OK);
+                this.sizes.delete(acc.name);
+                fs.unlink(x.real, () => sftp.status(id, STATUS_CODE.FAILURE, 'Storage limit reached – the incomplete file was removed'));
+              });
+            });
             const mutate = (fn) => (id, ...a) => { if (ro) return deny(id); fn(id, ...a); };
             sftp.on('MKDIR', mutate((id, p) => { const w = where(p); if (!w || w.top) return deny(id); fs.mkdir(w.real, (e) => sftp.status(id, e ? STATUS_CODE.FAILURE : STATUS_CODE.OK)); }));
             sftp.on('RMDIR', mutate((id, p) => { const w = where(p); if (!w || w.top || w.real === path.resolve(w.root)) return deny(id); fs.rmdir(w.real, (e) => sftp.status(id, e ? STATUS_CODE.FAILURE : STATUS_CODE.OK)); }));
@@ -233,6 +267,18 @@ class Share {
     });
     await new Promise((resolve, reject) => { srv.once('error', reject); srv.listen(port, host, resolve); }).catch((e) => { throw Object.assign(new Error(e.code === 'EADDRINUSE' ? `Port ${port} is in use – choose another one.` : e.message), { status: 409 }); });
     this.server = srv; this.port = port; this.host = host;
+  }
+
+  /**
+   * Offene Verbindungen beenden, deren Zugang entfernt oder geändert wurde (Rechte, Ordner, Ablauf gelten sonst erst
+   * beim nächsten Anmelden): name = Zugang, team = true für alle Team-Mitglieder. Liefert die Zahl beendeter Verbindungen.
+   */
+  drop({ name = null, team = false } = {}) {
+    let n = 0;
+    for (const c of this.sessions) if ((name && c.user === name && !c.team) || (team && c.team)) { try { c.end(); n++; } catch { /* egal */ } this.sessions.delete(c); }
+    if (name) this.sizes.delete(name);
+    if (n) this.onSessions();
+    return n;
   }
 
   async stop() {

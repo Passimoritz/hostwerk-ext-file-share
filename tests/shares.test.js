@@ -30,3 +30,16 @@ test('Kennzeichen: nur direkte Unterordner, abgelaufene Links zählen nicht', ()
   assert.deepStrictEqual(m.Welten.users, ['lena']);
   assert.deepStrictEqual(S.marksIn(path.join(base, 'Mods'), acc, links, false), { tief: { users: ['max'], links: 0 } });
 });
+
+test('Hostwerk-Datenordner: der Ordner selbst, darunter oder darüber ist heikel, daneben nicht', () => {
+  const hw = path.resolve('/home/u/Hostwerk');
+  const dirs = [path.join(hw, 'data'), path.join(hw, 'config')];
+  assert.ok(S.sensitive(path.join(hw, 'data'), dirs));
+  assert.ok(S.sensitive(path.join(hw, 'data', 'file-share'), dirs));
+  assert.ok(S.sensitive(hw, dirs), 'parent contains data/');
+  assert.ok(S.sensitive(path.resolve('/home/u'), dirs));
+  assert.ok(!S.sensitive(path.join(hw, 'database'), dirs), 'similar name is fine');
+  assert.ok(!S.sensitive(path.resolve('/srv/share'), dirs));
+  assert.ok(!S.sensitive('', dirs));
+  assert.ok(S.sensitive(path.join(hw, 'DATA'), dirs, true), 'Windows: ignores case');
+});
