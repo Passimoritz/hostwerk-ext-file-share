@@ -1,3 +1,9 @@
+## 1.4.0
+
+- Download links: optional password and download limit, expired or used-up links can be extended; open SFTP connections can be disconnected; a warning when a folder is or contains Hostwerk’s own data folder. / Download-Links: optional mit Passwort und Download-Limit, abgelaufene oder aufgebrauchte Links lassen sich verlängern; offene SFTP-Verbindungen lassen sich trennen; Warnung, wenn ein Ordner Hostwerks eigenen Datenordner ist oder enthält.
+- Safer: changed or removed accesses and expired ones end open SFTP connections right away, hidden files (.env, .git …) can no longer be downloaded via a guessed address. / Sicherer: Geänderte, entfernte und abgelaufene Zugänge beenden offene SFTP-Verbindungen sofort, versteckte Dateien (.env, .git …) lassen sich nicht mehr über eine erratene Adresse laden.
+- Fixes: editing an expired access works, the wizard accepts the same names as the server, storage limit reached is reported to SFTP programs, translated right-click menu, plural for download links, long names wrap; places in Hostwerk named after the new menus. / Behoben: Abgelaufenen Zugang bearbeiten geht, der Assistent nimmt dieselben Namen wie der Server, volle Speichergrenze wird SFTP-Programmen gemeldet, übersetztes Rechtsklick-Menü, Mehrzahl bei Download-Links, lange Namen brechen um; Orte in Hostwerk nach den neuen Menüs benannt.
+
 ## 1.3.3
 
 - New animated icon and banner in the common Hostwerk style (isometric block). / Neues animiertes Symbol und Banner im gemeinsamen Hostwerk-Stil (isometrischer Block).
